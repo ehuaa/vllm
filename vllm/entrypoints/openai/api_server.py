@@ -34,6 +34,9 @@ from vllm.sampling_params import SamplingParams
 from vllm.transformers_utils.tokenizer import get_tokenizer
 from vllm.utils import random_uuid
 
+from collections import deque
+import itertools
+
 TIMEOUT_KEEP_ALIVE = 5  # seconds
 
 logger = init_logger(__name__)
@@ -130,6 +133,52 @@ async def check_model(request) -> Optional[JSONResponse]:
     return ret
 
 
+async def get_gen_prompt_ids_with_history(messages, prompt, system_message, 
+                                      max_window_size=3000, 
+                                      max_content_round=20) -> str:
+    sep = "<|im_end|>"
+    roles = ("<|im_start|>user", "<|im_start|>assistant")
+    
+    tmp_ret = "<|im_start|>system\n{system_message}".format(system_message=system_message) + sep + "\n"
+    token_ids = tokenizer(tmp_ret).input_ids
+    token_num = len(token_ids)
+    content_round = 0
+    tmp_ret = ""
+    
+    # add chat history to input_ids
+    history_token_ids = deque()
+    for msg_user, msg_assistant in reversed(messages):
+        if msg_user:
+            tmp_ret += roles[0] + "\n" + msg_user + sep + "\n"
+        else:
+            tmp_ret += roles[0] + "\n"
+            
+        if msg_assistant:
+            tmp_ret += roles[1] + "\n" + msg_assistant + sep + "\n"
+        else:
+            tmp_ret += roles[1] + "\n"
+        
+        tmp_token_ids = tokenizer(tmp_ret).input_ids
+        content_round += 1
+        token_num += len(tmp_token_ids)
+        if token_num > max_window_size or content_round > max_content_round:
+            break
+        else:
+            history_token_ids.appendleft(tmp_token_ids)
+            tmp_ret = ""
+    
+    history_token_ids.appendleft(token_ids)
+    # add prompt to token_ids
+    tmp_ret = ""
+    tmp_ret += roles[0] + "\n" + prompt + sep + "\n"
+    tmp_ret += roles[1] + "\n"
+    history_token_ids.append(tokenizer(tmp_ret).input_ids)
+    
+    token_ids = list(itertools.chain(*list(history_token_ids)))
+    
+    return token_ids
+
+
 async def check_length(
     request: Union[ChatCompletionRequest, CompletionRequest],
     prompt: Optional[str] = None,
@@ -155,6 +204,30 @@ async def check_length(
         )
     else:
         return input_ids, None
+
+
+async def check_qwen_length(
+    prompt_ids: Optional[List[int]] = None,
+    params: Dict = None,
+    max_length: int = 8192
+) -> Tuple[List[int], Optional[JSONResponse]]:
+    assert (prompt_ids is not None and params is not None), "prompt_ids and params should be provided."
+    token_num = len(prompt_ids)
+    
+    cur_max_model_len = min(max_length, max_model_len)
+    if "max_tokens" not in params:
+        params["max_tokens"] = cur_max_model_len - token_num
+    if params["max_tokens"] <= 0 or token_num + params["max_tokens"] > cur_max_model_len:
+        return prompt_ids, create_error_response(
+            HTTPStatus.BAD_REQUEST,
+            f"This model's maximum context length is {max_model_len} tokens. "
+            f"However, you requested {params['max_tokens'] + token_num} tokens "
+            f"({token_num} in the messages, "
+            f"{params['max_tokens']} in the completion). "
+            f"Please reduce the length of the messages or completion.",
+        )
+    else:
+        return prompt_ids, None
 
 
 @app.get("/health")
@@ -207,6 +280,75 @@ def create_logprobs(
                 for i, p in step_top_logprobs.items()
             } if step_top_logprobs else None)
     return logprobs
+
+
+@app.post("/llm/generate")
+async def llm_generate(request: Request) -> Response:
+    """
+    Specify Use for Qwen style chat LLM for 14B or 72B
+    Generate completion for the request.
+
+    The request should be a JSON object with the following fields:
+    - prompt: the prompt to use for the generation.
+    - stream: whether to stream the results or not.
+    - other fields: the sampling parameters (See `SamplingParams` for details).
+    """
+    request_dict = await request.json()
+    request_dict = request_dict.pop("data")
+    
+    # get data from request_dict
+    stream = request_dict.pop("stream", False)
+    chat_history = request_dict.pop("history", [])
+    system_message = request_dict.pop("system", "")
+    prompt = request_dict.pop("input", "")
+    max_window_size = request_dict.pop("maxWindowSize", 3000)
+    max_content_round = request_dict.pop("maxContentRound", 20)
+    max_length = request_dict.pop("maxLength", 8192)
+    sampling_params = request_dict.pop("params")
+    request_id = random_uuid()
+
+    # generate prompt
+    prompt_ids = await get_gen_prompt_ids_with_history(chat_history, prompt, system_message, max_window_size, max_content_round)
+    prompt_ids, error_check_ret = await check_qwen_length(prompt_ids, sampling_params, max_length)
+    
+    sampling_params["stop"] = ["<|im_end|>"]
+    sampling_params = SamplingParams(**sampling_params)
+    print(sampling_params)
+
+    if error_check_ret is not None:
+        return error_check_ret
+    results_generator = engine.generate(prompt, sampling_params, request_id, prompt_ids)
+
+    # Streaming case
+    async def stream_results() -> AsyncGenerator[bytes, None]:
+        async for request_output in results_generator:
+            # prompt = request_output.prompt
+            text_outputs = [
+                output.text for output in request_output.outputs
+            ]
+            ret = {"output": text_outputs[0]}
+            yield (json.dumps(ret) + "\0").encode("utf-8")
+
+    if stream:
+        return StreamingResponse(stream_results())
+
+    # Non-streaming case
+    final_output = None
+    async for request_output in results_generator:
+        if await request.is_disconnected():
+            # Abort the request if the client disconnects.
+            await engine.abort(request_id)
+            return Response(status_code=499)
+        final_output = request_output
+
+    assert final_output is not None
+    # prompt = final_output.prompt
+    text_outputs = [output.text for output in final_output.outputs]
+    ret = {"requestId":request_id,
+           "code":"200" ,
+           "message":"success",
+           "data": {"output": text_outputs[0]}}
+    return JSONResponse(ret)
 
 
 @app.post("/v1/chat/completions")
