@@ -1,0 +1,21 @@
+FROM nvcr.io/nvidia/pytorch:23.08-py3
+
+WORKDIR /workspace
+
+# install build and runtime dependencies
+COPY requirements.txt /
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r /requirements.txt
+
+# add code to docker
+COPY . /opt/vllm-main/
+RUN cd /opt/vllm-main && python3 setup.py install
+
+# change workdir to /workspace/app
+WORKDIR /workspace/app
+COPY entrypoint.sh /workspace/app/entrypoint.sh
+COPY gpu_count.py /workspace/app/gpu_count.py 
+
+RUN chmod 755 entrypoint.sh 
+ENTRYPOINT [ "bash" "entrypoint.sh"]
