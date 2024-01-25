@@ -1,10 +1,9 @@
-root@ip-10-37-53-67:/home/ubuntu# cat /opt/data/scripts/vllm.sh
 #!/usr/bin/env bash
 
-IMAGE_VERSION=0.2.2-cuda11.8.0-cudnn8-torch2.0.1
-IMAGE_NAME=vllm
-CONTAINER_NAME=vllm72b
-MODEL_DIR=/opt/data/models/geo_72B_sft_ckpt_mp8_pp4_hf-2
+IMAGE_VERSION=latest
+IMAGE_NAME=vllm/vllm72b
+CONTAINER_NAME=vllm72b-zj
+MODEL_DIR=/mnt/geogpt/ali/models/Qwen/geo_72B_sft_ckpt_mp8_pp4_hf-2
 DEVICES='"device=0,1,2,3,4,5,6,7"'
 
 start() {
@@ -18,7 +17,7 @@ start() {
         -e LANG="C.UTF-8" \
         -e LC_ALL="C.UTF-8" \
         -e MODEL_PATH=${MODEL_DIR} \
-        -e MODEL_TYPE="llm" \
+        -e MODEL_TYPE="Qwen" \
         -v ${MODEL_DIR}:${MODEL_DIR} \
         ${IMAGE_NAME}:${IMAGE_VERSION}
 }

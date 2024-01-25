@@ -18,4 +18,4 @@ if [ -n "$GPU_USAGE" ]; then
 fi
 echo "GPU_USAGE is $gpu_usage"
 #while true; do sleep 1s; done;
-python3 -m vllm.entrypoints.api_server --port 8000 --host 0.0.0.0 --gpu-memory-utilization ${gpu_usage} -tp=${TP_SIZE} --model_type ${MODEL_TYPE} --model ${MODEL} --trust-remote-code
+python3 -m vllm.entrypoints.openai.api_server --port 10088 --host 0.0.0.0 --gpu-memory-utilization ${gpu_usage} -tensor-parallel-size=${TP_SIZE} --served-model-name ${MODEL_TYPE} --model ${MODEL} --trust-remote-code
