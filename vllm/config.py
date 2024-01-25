@@ -1,4 +1,5 @@
-from typing import Optional, Union
+from typing import Optional, Union, ClassVar
+from dataclasses import dataclass
 import os
 
 import torch
@@ -49,6 +50,12 @@ class ModelConfig:
             output). If None, will be derived from the model.
         quantization: Quantization method that was used to quantize the model
             weights. If None, we assume the model weights are not quantized.
+        enforce_eager: Whether to enforce eager execution. If True, we will
+            disable CUDA graph and always execute the model in eager mode.
+            If False, we will use CUDA graph and eager execution in hybrid.
+        max_context_len_to_capture: Maximum context len covered by CUDA graphs.
+            When a sequence has context length larger than this, we fall back
+            to eager mode.
     """
 
     def __init__(
@@ -65,6 +72,8 @@ class ModelConfig:
         tokenizer_revision: Optional[str] = None,
         max_model_len: Optional[int] = None,
         quantization: Optional[str] = None,
+        enforce_eager: bool = False,
+        max_context_len_to_capture: Optional[int] = None,
     ) -> None:
         self.model = model
         self.tokenizer = tokenizer
@@ -76,6 +85,8 @@ class ModelConfig:
         self.revision = revision
         self.tokenizer_revision = tokenizer_revision
         self.quantization = quantization
+        self.enforce_eager = enforce_eager
+        self.max_context_len_to_capture = max_context_len_to_capture
 
         if os.environ.get("VLLM_USE_MODELSCOPE", "False").lower() == "true":
             # download model from ModelScope hub,
@@ -95,42 +106,34 @@ class ModelConfig:
         self._verify_load_format()
         self._verify_tokenizer_mode()
         self._verify_quantization()
+        self._verify_cuda_graph()
 
     def _verify_load_format(self) -> None:
         load_format = self.load_format.lower()
         supported_load_format = [
             "auto", "pt", "safetensors", "npcache", "dummy"
         ]
-        rocm_not_supported_load_format = ["safetensors"]
+        rocm_not_supported_load_format = []
         if load_format not in supported_load_format:
             raise ValueError(
                 f"Unknown load format: {self.load_format}. Must be one of "
                 "'auto', 'pt', 'safetensors', 'npcache', or 'dummy'.")
-        if is_hip():
-            if load_format in ["safetensors"]:
-                rocm_supported_load_format = [
-                    f for f in supported_load_format
-                    if (f not in rocm_not_supported_load_format)
-                ]
-                raise ValueError(
-                    f"load format \'{load_format}\' is not supported in ROCm. "
-                    f"Supported load format are "
-                    f"{rocm_supported_load_format}")
-            # Force ROCm to load from pt weights if nothing specific is set
-            if load_format == "auto":
-                load_format = "pt"
+        if is_hip() and load_format in rocm_not_supported_load_format:
+            rocm_supported_load_format = [
+                f for f in supported_load_format
+                if (f not in rocm_not_supported_load_format)
+            ]
+            raise ValueError(
+                f"load format \'{load_format}\' is not supported in ROCm. "
+                f"Supported load format are "
+                f"{rocm_supported_load_format}")
 
         # TODO: Remove this check once HF updates the pt weights of Mixtral.
         architectures = getattr(self.hf_config, "architectures", [])
-        if "MixtralForCausalLM" in architectures:
-            if load_format == "pt":
-                raise ValueError(
-                    "Currently, the 'pt' format is not supported for Mixtral. "
-                    "Please use the 'safetensors' format instead. ")
-            elif load_format == "auto":
-                # Do not fall back to pt weights.
-                load_format = "safetensors"
-
+        if "MixtralForCausalLM" in architectures and load_format == "pt":
+            raise ValueError(
+                "Currently, the 'pt' format is not supported for Mixtral. "
+                "Please use the 'safetensors' format instead. ")
         self.load_format = load_format
 
     def _verify_tokenizer_mode(self) -> None:
@@ -142,7 +145,7 @@ class ModelConfig:
         self.tokenizer_mode = tokenizer_mode
 
     def _verify_quantization(self) -> None:
-        supported_quantization = ["awq", "squeezellm"]
+        supported_quantization = ["awq", "gptq", "squeezellm"]
         rocm_not_supported_quantization = ["awq"]
         if self.quantization is not None:
             self.quantization = self.quantization.lower()
@@ -173,6 +176,12 @@ class ModelConfig:
             logger.warning(f"{self.quantization} quantization is not fully "
                            "optimized yet. The speed can be slower than "
                            "non-quantized models.")
+
+    def _verify_cuda_graph(self) -> None:
+        if self.max_context_len_to_capture is None:
+            self.max_context_len_to_capture = self.max_model_len
+        self.max_context_len_to_capture = min(self.max_context_len_to_capture,
+                                              self.max_model_len)
 
     def verify_with_parallel_config(
         self,
@@ -387,6 +396,54 @@ class SchedulerConfig:
                 f"max_num_batched_tokens ({self.max_num_batched_tokens}) must "
                 "be greater than or equal to max_num_seqs "
                 f"({self.max_num_seqs}).")
+
+
+@dataclass
+class LoRAConfig:
+    max_lora_rank: int
+    max_loras: int
+    max_cpu_loras: Optional[int] = None
+    lora_dtype: Optional[torch.dtype] = None
+    lora_extra_vocab_size: int = 256
+    # This is a constant.
+    lora_vocab_padding_size: ClassVar[int] = 256
+
+    def __post_init__(self):
+        # Keep this in sync with csrc/punica/bgmv/bgmv_config.h
+        possible_max_ranks = (8, 16, 32, 64)
+        possible_lora_extra_vocab_size = (0, 256, 512)
+        if self.max_lora_rank not in possible_max_ranks:
+            raise ValueError(
+                f"max_lora_rank ({self.max_lora_rank}) must be one of "
+                f"{possible_max_ranks}.")
+        if self.lora_extra_vocab_size not in possible_lora_extra_vocab_size:
+            raise ValueError(
+                f"lora_extra_vocab_size ({self.lora_extra_vocab_size}) "
+                f"must be one of {possible_lora_extra_vocab_size}.")
+        if self.max_loras < 1:
+            raise ValueError(f"max_loras ({self.max_loras}) must be >= 1.")
+        if self.max_cpu_loras is None:
+            self.max_cpu_loras = self.max_loras
+        elif self.max_cpu_loras < self.max_loras:
+            raise ValueError(
+                f"max_cpu_loras ({self.max_cpu_loras}) must be >= "
+                f"max_num_seqs ({self.max_loras})")
+
+    def verify_with_model_config(self, model_config: ModelConfig):
+        if self.lora_dtype in (None, "auto"):
+            self.lora_dtype = model_config.dtype
+        elif isinstance(self.lora_dtype, str):
+            self.lora_dtype = getattr(torch, self.lora_dtype)
+        if model_config.quantization is not None:
+            raise ValueError(
+                "LoRA is not supported with quantized models yet.")
+
+    def verify_with_scheduler_config(self, scheduler_config: SchedulerConfig):
+        if scheduler_config.max_num_batched_tokens > 65528:
+            raise ValueError(
+                "Due to limitations of the custom LoRA CUDA kernel, "
+                "max_num_batched_tokens must be <= 65528 when "
+                "LoRA is enabled.")
 
 
 _STR_DTYPE_TO_TORCH_DTYPE = {

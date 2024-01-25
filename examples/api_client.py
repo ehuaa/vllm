@@ -36,7 +36,7 @@ def get_streaming_response(response: requests.Response) -> Iterable[List[str]]:
                                      delimiter=b"\0"):
         if chunk:
             data = json.loads(chunk.decode("utf-8"))
-            output = data["output"]
+            output = data["data"]["output"]
             yield output
 
 
