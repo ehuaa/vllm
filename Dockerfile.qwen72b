@@ -18,4 +18,4 @@ COPY entrypoint.sh /workspace/app/entrypoint.sh
 COPY gpu_count.py /workspace/app/gpu_count.py 
 
 RUN chmod 755 entrypoint.sh 
-ENTRYPOINT [ "bash" "entrypoint.sh"]
+ENTRYPOINT ["./entrypoint.sh"]

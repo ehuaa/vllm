@@ -1,7 +1,10 @@
+#!/usr/bin/env bash
+
+echo "run entrypoint..."
 TP_SIZE=$(python3 gpu_count.py)
 echo "TP_SIZE is $TP_SIZE"
 #cd /workspace/vllm
-wssh --port=8003 --fbidhttp=False >webssh.log 2>&1 &
+#wssh --port=8003 --fbidhttp=False >webssh.log 2>&1 &
 MODEL=""
 if [ "$MODEL_DIR" != "" ];then
     MODEL=$MODEL_DIR
@@ -12,10 +15,11 @@ else
 fi
 echo "MODEL config is $MODEL"
 
-gpu_usage=0.9
+gpu_usage=0.96
+MAX_NUM_SEQS=128
 if [ -n "$GPU_USAGE" ]; then
    gpu_usage=$GPU_USAGE
 fi
 echo "GPU_USAGE is $gpu_usage"
 #while true; do sleep 1s; done;
-python3 -m vllm.entrypoints.openai.api_server --port 10088 --host 0.0.0.0 --gpu-memory-utilization ${gpu_usage} -tensor-parallel-size=${TP_SIZE} --served-model-name ${MODEL_TYPE} --model ${MODEL} --trust-remote-code
+python3 -m vllm.entrypoints.openai.api_server --port 10088 --host 0.0.0.0 --gpu-memory-utilization ${gpu_usage} --tensor-parallel-size=${TP_SIZE} --served-model-name ${MODEL_TYPE} --model ${MODEL} --trust-remote-code --max-num-seqs=${MAX_NUM_SEQS}

@@ -8,6 +8,7 @@ DEVICES='"device=0,1,2,3,4,5,6,7"'
 
 start() {
     # docker start command
+    echo "start run docker..."
     docker run -d --name ${CONTAINER_NAME} \
         --log-opt max-size=30m \
         --log-opt max-file=3 \
@@ -22,4 +23,4 @@ start() {
         ${IMAGE_NAME}:${IMAGE_VERSION}
 }
 
-$1
+start
