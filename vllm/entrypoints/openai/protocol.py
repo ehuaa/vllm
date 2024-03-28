@@ -89,6 +89,7 @@ class ChatCompletionRequest(BaseModel):
     guided_json: Optional[Union[str, dict, BaseModel]] = None
     guided_regex: Optional[str] = None
     guided_choice: Optional[List[str]] = None
+    requestId: Optional[str] = None
 
     def to_sampling_params(self) -> SamplingParams:
         if self.logprobs and not self.top_logprobs:

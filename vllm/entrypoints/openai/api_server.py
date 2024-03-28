@@ -57,7 +57,8 @@ async def lifespan(app: fastapi.FastAPI):
     yield
 
 
-app = fastapi.FastAPI(lifespan=lifespan)
+# app = fastapi.FastAPI(lifespan=lifespan)
+app = fastapi.FastAPI()
 engine = None
 response_role = None
 
@@ -163,13 +164,6 @@ metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
 
-def create_error_response(status_code: HTTPStatus,
-                          message: str) -> JSONResponse:
-    return JSONResponse(ErrorResponse(message=message,
-                                      type="invalid_request_error").dict(),
-                        status_code=status_code.value)
-
-
 def load_chat_template(args, tokenizer):
     if args.chat_template is not None:
         try:
@@ -256,13 +250,13 @@ async def check_length(
     if request.max_tokens is None:
         request.max_tokens = max_model_len - token_num
     if token_num + request.max_tokens > max_model_len:
-        return input_ids, create_error_response(
-            HTTPStatus.BAD_REQUEST,
+        return input_ids, openai_serving_chat.create_error_response(
+            message=
             f"This model's maximum context length is {max_model_len} tokens. "
             f"However, you requested {request.max_tokens + token_num} tokens "
             f"({token_num} in the messages, "
             f"{request.max_tokens} in the completion). "
-            f"Please reduce the length of the messages or completion.",
+            f"Please reduce the length of the messages or completion."
         )
     else:
         return input_ids, None
@@ -276,27 +270,34 @@ async def check_qwen_length(
     assert (prompt_ids is not None and params is not None), "prompt_ids and params should be provided."
     token_num = len(prompt_ids)
     
-    cur_max_model_len = min(max_length, max_model_len)
     if "max_tokens" not in params:
-        params["max_tokens"] = cur_max_model_len - token_num
-    if params["max_tokens"] <= 0 or token_num + params["max_tokens"] > cur_max_model_len:
-        return prompt_ids, create_error_response(
-            HTTPStatus.BAD_REQUEST,
+        params["max_tokens"] = max_model_len - token_num
+    params["max_tokens"] = min(max_length, params["max_tokens"])
+    if params["max_tokens"] <= 0 or token_num + params["max_tokens"] > max_model_len:
+        return prompt_ids, openai_serving_chat.create_error_response(
+            message=
             f"This model's maximum context length is {max_model_len} tokens. "
             f"However, you requested {params['max_tokens'] + token_num} tokens "
             f"({token_num} in the messages, "
             f"{params['max_tokens']} in the completion). "
-            f"Please reduce the length of the messages or completion.",
+            f"Please reduce the length of the messages or completion."
         )
     else:
         return prompt_ids, None
 
 
-@app.get("/health")
-async def health() -> Response:
+@app.get("/ready")
+async def ready() -> JSONResponse:
     """Health check."""
     await openai_serving_chat.engine.check_health()
-    return Response(status_code=200)
+    return JSONResponse(content={"code":200, "message":"success", "data":None})
+
+
+@app.get("/health")
+async def health() -> JSONResponse:
+    """Health check."""
+    await openai_serving_chat.engine.check_health()
+    return JSONResponse(content={"code":200, "message":"success", "data":None})
 
 
 @app.get("/v1/models")
@@ -318,17 +319,20 @@ async def llm_generate(request: Request) -> Response:
     """
     request_dict = await request.json()
     request_dict = request_dict.pop("data")
-    
+    logger.info(
+            f"llm_generate receive request dict:\n{request_dict}")
     # get data from request_dict
     stream = request_dict.pop("stream", False)
     chat_history = request_dict.pop("history", [])
+    if chat_history is None:
+        chat_history = []
     system_message = request_dict.pop("system", "")
     prompt = request_dict.pop("input", "")
     max_window_size = request_dict.pop("maxWindowSize", 3000)
     max_content_round = request_dict.pop("maxContentRound", 20)
     max_length = request_dict.pop("maxLength", 8192)
     sampling_params = request_dict.pop("params")
-    request_id = random_uuid()
+    request_id = request_dict.pop("requestId", random_uuid())
 
     # generate prompt
     prompt_ids = await get_gen_prompt_ids_with_history(chat_history, prompt, system_message, max_window_size, max_content_round)

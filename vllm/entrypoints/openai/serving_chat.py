@@ -50,6 +50,7 @@ class OpenAIServingChat(OpenAIServing):
             return error_check_ret
 
         try:
+            # TODO modify chat template to cope with qwen 72b model 
             prompt = self.tokenizer.apply_chat_template(
                 conversation=request.messages,
                 tokenize=False,
@@ -59,8 +60,10 @@ class OpenAIServingChat(OpenAIServing):
                 f"Error in applying chat template from request: {str(e)}")
             return self.create_error_response(str(e))
 
-        request_id = f"cmpl-{random_uuid()}"
+        # assign requestId from outside 
+        request_id = request.requestId or f"cmpl-{random_uuid()}"
         try:
+            # TODO validate prompt as well as give max_tokens of prompt
             token_ids = self._validate_prompt_and_tokenize(request,
                                                            prompt=prompt)
             sampling_params = request.to_sampling_params()

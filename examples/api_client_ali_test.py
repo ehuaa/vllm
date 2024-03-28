@@ -5,6 +5,7 @@ import json
 from typing import Iterable, List
 
 import requests
+import uuid
 
 
 def clear_line(n: int = 1) -> None:
@@ -31,6 +32,7 @@ def post_http_request(api_url: str, question: str) -> requests.Response:
     #     "stream": stream,
     # }
     data["data"]["input"] = question
+    data["data"]["requestId"] = str(uuid.uuid4().hex)
     response = requests.post(api_url, headers=headers, json=data, stream=True)
     return response
 
@@ -54,7 +56,7 @@ def get_response(response: requests.Response) -> List[str]:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="10.244.127.79")
-    parser.add_argument("--port", type=int, default=18192)
+    parser.add_argument("--port", type=int, default=8000)
     # parser.add_argument("--host", type=str, default="10.244.127.79")
     # parser.add_argument("--port", type=int, default=8000)
     # parser.add_argument("--n", type=int, default=4)
@@ -88,5 +90,5 @@ if __name__ == "__main__":
             question["answer_length"] = len(output)
                                         
     
-    with open('vllm_zj_res.json', 'w') as file:
+    with open('vllm_ali_res.json', 'w') as file:
         json.dump(data1, file)

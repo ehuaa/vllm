@@ -204,7 +204,7 @@ if __name__ == "__main__":
                         default="http",
                         choices=["http", "https"])
     parser.add_argument("--host", type=str, default="10.106.82.80")
-    parser.add_argument("--port", type=int, default=8989)
+    parser.add_argument("--port", type=int, default=18192)
     parser.add_argument("--endpoint", type=str, default="/llm/generate")
     parser.add_argument("--model", type=str, default=None)
     parser.add_argument("--dataset",

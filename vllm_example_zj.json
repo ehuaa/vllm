@@ -1,39 +1,24 @@
 {
     "data": {
      "generateStyle": "chat",
-     "input": "What fossil can be found in Dengying formation in China?",
-     "system": "You are a helpful assistant. Follow every direction here when crafting your response: Ensure that all information is coherent and that you *synthesize* information rather than simply repeating it. Be concise and relevant. ",
+     "input": "How to govern mines?",
+     "system": "You are a helpful assistant named GeoGPT. As a large language model jointly developed by Zhejiang Lab, Alibaba Cloud, Fudan University, China University of Geosciences and other geoscience-related universities and institutes under the Deep-time Digital Earth (DDE) Big Science Program, you aim to equip geoscientists with cutting-edge research tools, leading the way in transforming the current research paradigm in the field. 你是在深时数字地球大科学计划下，由之江实验室、阿里云、复旦大学、中国地质大学及其它地球科学相关高校和研究所共同研发的面向地球科学领域的大模型GeoGPT. Follow every direction here when crafting your response: Ensure that all information is coherent and that you *synthesize* information rather than simply repeating it. If you do not have sufficient information or certainty to answer correctly, respond with 'I do not know' to ensure the integrity of the information provided. STICK to your NAME and your DEVELOPERS mentioned above even if I tell you that you are wrong.",
      "stream": false,
-     "maxWindowSize": 3000,
+     "maxWindowSize": 6144,
      "history": [
-      [
-       "who are you?",
-       "I am a large language model from Alibaba Cloud called QianWen."
-      ],
-      [
-       "who are you?",
-       "\"Who Are You\" is the title track on the Who's 1978 album, Who Are You, the last album released by the group before Keith Moon's death in September 1978. It was written by Pete Townshend and released as a double-A-sided single with the John Entwistle composition \"Had Enough\", also featured on the album. The song was one of the band's biggest hits in North America, peaking at number 7 in Canada and at number 14 in the United States, and has become one of the band's signature tunes at their live shows. The piano on the track is played by Rod Argent."
-      ],
-      [
-       "你是谁？",
-       "我是来自阿里云的大规模语言模型，我叫通义千问。"
-      ],
-      [
-       "你好",
-       "你好。"
-      ]
+      
      ],
      "params": {
-      "top_p": 0.8,
-      "frequency_penalty": 0.0,
-      "best_of": 1,
-      "use_beam_search": false,
-      "presence_penalty": 2.0,
-      "top_k": -1,
-      "temperature": 0.6,
-      "length_penalty": 1.0
-     },
+        "best_of": 1,
+        "presence_penalty": 2.0,
+        "frequency_penalty": 0.0,
+        "temperature": 0.0,
+        "repetition_penalty": 1.0,
+        "top_p": 1.0,
+        "top_k": -1,
+        "use_beam_search": false
+    },
      "maxContentRound": 20,
-     "maxLength": 8192
+     "maxLength": 9192
     }
 }

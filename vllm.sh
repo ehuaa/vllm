@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-IMAGE_VERSION=latest
-IMAGE_NAME=vllm/vllm72b
+IMAGE_VERSION=v1
+IMAGE_NAME=10.108.0.3:15080/zhangjx/vllm14b
 CONTAINER_NAME=vllm72b-zj
-MODEL_DIR=/mnt/geogpt/ali/models/Qwen/geo_72B_sft_ckpt_mp8_pp4_hf-2
-DEVICES='"device=0,1,2,3,4,5,6,7"'
+MODEL_DIR=/mnt/geogpt-gpfs/ali/models/Qwen/Qwen-geo/geogpt-72b-dpo
+DEVICES='"device=4,5,6,7"'
 
 start() {
     # docker start command
@@ -23,4 +23,4 @@ start() {
         ${IMAGE_NAME}:${IMAGE_VERSION}
 }
 
-start
+$1
