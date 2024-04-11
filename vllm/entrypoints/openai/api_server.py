@@ -343,6 +343,13 @@ async def llm_generate(request: Request) -> Response:
         return error_check_ret
     
     sampling_params["stop"] = ["<|im_end|>"]
+    
+    # best_of param should be set to 1 when not using beam search, in case of passing in an outlier best_of value 
+    # which will stuck the main process for very long time.
+    # Here we set best_of to None forcely when not using beam search.
+    if not sampling_params.get("use_beam_search", False):
+        sampling_params["best_of"] = None
+     
     sampling_params = SamplingParams(**sampling_params)
     results_generator = engine.generate(prompt, sampling_params, request_id, prompt_ids)
 
