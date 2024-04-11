@@ -337,13 +337,13 @@ async def llm_generate(request: Request) -> Response:
     # generate prompt
     prompt_ids = await get_gen_prompt_ids_with_history(chat_history, prompt, system_message, max_window_size, max_content_round)
     prompt_ids, error_check_ret = await check_qwen_length(prompt_ids, sampling_params, max_length)
+
+    if error_check_ret is not None:
+        logger.error("requestId: " + str(request_id) + "\n" + error_check_ret.message)
+        return error_check_ret
     
     sampling_params["stop"] = ["<|im_end|>"]
     sampling_params = SamplingParams(**sampling_params)
-    print(sampling_params)
-
-    if error_check_ret is not None:
-        return error_check_ret
     results_generator = engine.generate(prompt, sampling_params, request_id, prompt_ids)
 
     # Streaming case

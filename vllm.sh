@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-IMAGE_VERSION=v1
-IMAGE_NAME=10.108.0.3:15080/zhangjx/vllm14b
-CONTAINER_NAME=vllm72b-zj
-MODEL_DIR=/mnt/geogpt-gpfs/ali/models/Qwen/Qwen-geo/geogpt-72b-dpo
-DEVICES='"device=4,5,6,7"'
+IMAGE_VERSION=latest
+IMAGE_NAME=vllm-zj/dpo-72b
+CONTAINER_NAME=vllm72b-zj-deploy
+MODEL_DIR=/mnt/geogpt-gpfs/ali/models/Qwen/Qwen-geo/geogpt-72b-0326
+DEVICES='"device=0,1,2,3,4,5,6,7"'
 
 start() {
     # docker start command
@@ -18,7 +18,8 @@ start() {
         -e LANG="C.UTF-8" \
         -e LC_ALL="C.UTF-8" \
         -e MODEL_PATH=${MODEL_DIR} \
-        -e MODEL_TYPE="Qwen" \
+        -e MODEL_TYPE="Qwen2" \
+        -e PORT=18192 \
         -v ${MODEL_DIR}:${MODEL_DIR} \
         ${IMAGE_NAME}:${IMAGE_VERSION}
 }

@@ -41,11 +41,12 @@ def sample_requests(
     # Load the dataset.
     with open(dataset_path) as f:
         dataset = json.load(f)
+        # dataset = [f.read()]
+    # print(dataset)
     dataset = [
-        (data["question"])
+        (data["instruction"])
         for data in dataset
     ]
-
     # Tokenize the prompts and completions.
     prompts = [prompt for prompt in dataset]
     # prompt_token_ids = tokenizer(prompts).input_ids
@@ -109,7 +110,8 @@ async def send_request(backend: str, model: str, api_url: str, prompt: str,
     async with aiohttp.ClientSession(timeout=timeout) as session:
         stats.append(time.perf_counter()) 
         async with session.post(api_url, headers=headers, json=pload) as response:
-            async for _, _ in response.content.iter_chunks():
+            async for a, b in response.content.iter_chunks():
+                print(a, b)
                 stats.append(time.perf_counter())
 
     REQUEST_LATENCY.append(stats)
@@ -203,7 +205,7 @@ if __name__ == "__main__":
                         type=str,
                         default="http",
                         choices=["http", "https"])
-    parser.add_argument("--host", type=str, default="10.106.82.80")
+    parser.add_argument("--host", type=str, default="10.244.37.98")
     parser.add_argument("--port", type=int, default=18192)
     parser.add_argument("--endpoint", type=str, default="/llm/generate")
     parser.add_argument("--model", type=str, default=None)

@@ -13,7 +13,7 @@ def clear_line(n: int = 1) -> None:
     for _ in range(n):
         print(LINE_UP, end=LINE_CLEAR, flush=True)
 
-with open('/mnt/geogpt-gpfs/zhijiang/home/czh/vllm/vllm_example_zj.json') as f:
+with open('/mnt/geogpt-gpfs/zhijiang/home/czh/vllm/vllm_example_zj1.json') as f:
         data = json.load(f)
 
 with open('/mnt/geogpt-gpfs/zhijiang/home/czh/vllm/lqa_v2.0.json') as f:
@@ -53,7 +53,7 @@ def get_response(response: requests.Response) -> List[str]:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", type=str, default="10.244.127.79")
+    parser.add_argument("--host", type=str, default="10.244.37.98")
     parser.add_argument("--port", type=int, default=18192)
     # parser.add_argument("--host", type=str, default="10.244.127.79")
     # parser.add_argument("--port", type=int, default=8000)

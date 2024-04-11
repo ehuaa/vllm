@@ -4,6 +4,7 @@
 import logging
 import sys
 import os
+from logging.handlers import TimedRotatingFileHandler
 
 VLLM_CONFIGURE_LOGGING = int(os.getenv("VLLM_CONFIGURE_LOGGING", "1"))
 
@@ -27,18 +28,34 @@ class NewLineFormatter(logging.Formatter):
 
 _root_logger = logging.getLogger("vllm")
 _default_handler = None
+_file_handler = None
 
 
 def _setup_logger():
     _root_logger.setLevel(logging.DEBUG)
     global _default_handler
+    global _file_handler
+    fmt = NewLineFormatter(_FORMAT, datefmt=_DATE_FORMAT)
+    
     if _default_handler is None:
         _default_handler = logging.StreamHandler(sys.stdout)
         _default_handler.flush = sys.stdout.flush  # type: ignore
         _default_handler.setLevel(logging.INFO)
         _root_logger.addHandler(_default_handler)
-    fmt = NewLineFormatter(_FORMAT, datefmt=_DATE_FORMAT)
+
+    if _file_handler is None:
+        log_path = f'logs/vllm.log'
+        directory = os.path.dirname(log_path)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        if not os.path.exists(log_path):
+            with open(log_path, "w") as file:
+                file.write("logging start >>>>>>>>>>>>>>>>>>>>>")
+        _file_handler = TimedRotatingFileHandler(log_path, when='midnight', interval=1, backupCount=7)
+        _file_handler.setLevel(logging.INFO)
+    
     _default_handler.setFormatter(fmt)
+    _file_handler.setFormatter(fmt)
     # Setting this will avoid the message
     # being propagated to the parent logger.
     _root_logger.propagate = False
@@ -57,5 +74,6 @@ def init_logger(name: str):
     logger.setLevel(os.getenv("LOG_LEVEL", "DEBUG"))
     if VLLM_CONFIGURE_LOGGING:
         logger.addHandler(_default_handler)
+        logger.addHandler(_file_handler)
         logger.propagate = False
     return logger
