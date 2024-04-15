@@ -9,7 +9,10 @@ RUN pip config set global.index-url https://mirrors.ustc.edu.cn/pypi/web/simple
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r /requirements.txt
 
-# add code to docker
+# add code to docker and specify cuda arch
+ARG torch_cuda_arch_list='7.0 8.0+PTX'
+ENV TORCH_CUDA_ARCH_LIST=${torch_cuda_arch_list}
+
 COPY . /opt/vllm-main/
 RUN cd /opt/vllm-main && python3 setup.py install
 
