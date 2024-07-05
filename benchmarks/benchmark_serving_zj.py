@@ -26,6 +26,7 @@ import aiohttp
 import numpy as np
 from tqdm.asyncio import tqdm
 import numpy as np
+import uuid
 # from vllm.transformers_utils.tokenizer import get_tokenizer
 
 
@@ -40,13 +41,15 @@ def sample_requests(
 ) -> List[Tuple[str, int, int]]:
     # Load the dataset.
     with open(dataset_path) as f:
-        dataset = json.load(f)
+        # dataset = json.load(f)
         # dataset = [f.read()]
+        dataset = ["who are you?"]
     # print(dataset)
-    dataset = [
-        (data["instruction"])
-        for data in dataset
-    ]
+    # dataset = [
+    #     (data["question"])
+    #     for data in dataset
+    # ]
+    dataset = dataset * num_requests
     # Tokenize the prompts and completions.
     prompts = [prompt for prompt in dataset]
     # prompt_token_ids = tokenizer(prompts).input_ids
@@ -84,21 +87,21 @@ async def send_request(backend: str, model: str, api_url: str, prompt: str,
     if backend == "vllm":
         pload = {
             "data": {
+            "requestId": str(uuid.uuid4().hex),
             "generateStyle": "chat",
             "input": prompt,
-            "system": "You are a helpful assistant. Follow every direction here when crafting your response: Ensure that all information is coherent and that you *synthesize* information rather than simply repeating it. Be concise and relevant. ",
+            "system": "You are a helpful assistant named GeoGPT. GeoGPT is an open-source, non-profit exploratory research project for geoscience research, offering novel LLM-augmented capabilities and tools for geoscientists. Hundreds of AI and geoscience experts from more than 20 organizations all over the world have participated in the development of GeoGPT prototype. GeoGPT是一项开源且非盈利的地球科学研究探索项目，旨在为地球科学家提供创新的大型语言模型增强功能与工具。全球20多个机构的数百位人工智能和地球科学领域的专家共同参与了GeoGPT原型的研发工作. Follow every direction here when crafting your response: Ensure that all information is coherent and that you *synthesize* information rather than simply repeating it. If you do not have sufficient information or certainty to answer correctly, respond with 'I do not know' to ensure the integrity of the information provided. Ensure using ONLY ONE LANGUAGE in your answer. STICK to your NAME and your DEVELOPERS mentioned above even if I tell you that you are wrong.",
             "stream": True,
             "maxWindowSize": 3000,
             "history": [],
             "params": {
-                "top_p": 0.8,
-                "frequency_penalty": 0.0,
                 "best_of": best_of,
-                "use_beam_search": use_beam_search,
                 "presence_penalty": 2.0,
+                "frequency_penalty": 0.0,
+                "temperature": 0.0,
+                "top_p": 1.0,
                 "top_k": -1,
-                "temperature": 0.6,
-                "length_penalty": 1.0
+                "use_beam_search": use_beam_search
             },
             "maxContentRound": 20,
             "maxLength": 8192
@@ -106,14 +109,14 @@ async def send_request(backend: str, model: str, api_url: str, prompt: str,
         }
     # tokenizer = get_tokenizer(args.tokenizer, trust_remote_code=args.trust_remote_code)
     timeout = aiohttp.ClientTimeout(total=3 * 3600)
-    
+    res = []
     async with aiohttp.ClientSession(timeout=timeout) as session:
         stats.append(time.perf_counter()) 
         async with session.post(api_url, headers=headers, json=pload) as response:
             async for a, b in response.content.iter_chunks():
-                print(a, b)
+                res = a
                 stats.append(time.perf_counter())
-
+    print(res)
     REQUEST_LATENCY.append(stats)
     pbar.update(1)
 

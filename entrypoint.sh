@@ -33,4 +33,4 @@ if [ -n "$PORT" ]; then
 fi
 echo "PORT is $port"
 #while true; do sleep 1s; done;
-python3 -m vllm.entrypoints.openai.api_server --port ${port} --host 0.0.0.0 --gpu-memory-utilization ${gpu_usage} --tensor-parallel-size=${TP_SIZE} --served-model-name ${MODEL_TYPE} --model ${MODEL} --trust-remote-code --max-num-seqs=${max_num_seqs} --max-log-len 10
+python3 -m vllm.entrypoints.openai.api_server --port ${port} --host 0.0.0.0 --gpu-memory-utilization ${gpu_usage} --tensor-parallel-size=${TP_SIZE} --served-model-name ${MODEL_TYPE} --model ${MODEL} --trust-remote-code --max-num-seqs=${max_num_seqs}

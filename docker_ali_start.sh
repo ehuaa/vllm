@@ -6,9 +6,9 @@ DOCKER_NAME=qwen-72b
 ## 挂载路径，是模型路径的上一级
 MNT_PATH=/mnt/geogpt-gpfs/ali/models/Qwen/Qwen-geo
 ## 模型当前路径名称
-MODEL_NAME=geogpt-72b-dpo
+MODEL_NAME=geogpt-72b-0326
 ## 使用的显卡
-DEVICES='"device=0,1,2,3"'
+DEVICES='"device=0,1,2,3,4,5,6,7"'
 POD_NAME=**
 SERVICE_NAME=**
 GROUP_SIZE=1
@@ -32,7 +32,7 @@ start() {
         -e GPU_USAGE=0.95 \
         -e GROUP_SIZE=${GROUP_SIZE} \
         -e MODEL_PATH=/workspace/models/${MODEL_NAME} \
-        -e MODEL_TYPE="version1" \
+        -e MODEL_TYPE="version2" \
         -v ${MNT_PATH}:/workspace/models \
         ${IMAGE_NAME}:${IMAGE_VERSION}
 }

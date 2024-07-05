@@ -3,8 +3,8 @@
 IMAGE_VERSION=latest
 IMAGE_NAME=vllm-zj/dpo-72b
 CONTAINER_NAME=vllm72b-zj-deploy
-MODEL_DIR=/mnt/geogpt-gpfs/ali/models/Qwen/Qwen-geo/geogpt-72b-0326
-DEVICES='"device=0,1,2,3,4,5,6,7"'
+MODEL_DIR=/mnt/geogpt-gpfs/ali/models/Qwen/Qwen-geo/geogpt-72b-0412
+DEVICES='"device=0,1,2,3"'
 
 start() {
     # docker start command
