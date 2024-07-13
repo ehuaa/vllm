@@ -2,9 +2,12 @@
 
 Run `pytest tests/prefix_caching/test_prefix_caching.py`.
 """
+from typing import List
+
 import pytest
 
-from vllm.core.block_manager import BlockAllocator
+from vllm.block import PhysicalTokenBlock
+from vllm.core.block_manager_v1 import CachedBlockAllocator
 from vllm.utils import Device
 
 
@@ -15,10 +18,7 @@ def test_block_allocator(
     num_blocks: int,
 ):
     block_hash = 1
-    block_allocator = BlockAllocator(Device.CPU,
-                                     block_size,
-                                     num_blocks,
-                                     enable_caching=True)
+    block_allocator = CachedBlockAllocator(Device.CPU, block_size, num_blocks)
 
     # Allocate two PysicalTokenBlocks with the same hash and check
     # that they are the same PhysicalTokenBlock
@@ -45,11 +45,8 @@ def test_block_allocator(
 @pytest.mark.parametrize("num_blocks", [16])
 def test_eviction(num_blocks: int, ):
     block_size = 16
-    block_allocator = BlockAllocator(Device.CPU,
-                                     block_size,
-                                     num_blocks,
-                                     enable_caching=True)
-    blocks = []
+    block_allocator = CachedBlockAllocator(Device.CPU, block_size, num_blocks)
+    blocks: List[PhysicalTokenBlock] = []
 
     for i in range(num_blocks):
         # use i as the block_hash

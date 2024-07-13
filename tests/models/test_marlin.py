@@ -8,19 +8,15 @@ Note: Marlin internally uses locks to synchronize the threads. This can
 result in very slight nondeterminism for Marlin. As a result, we re-run the test
 up to 3 times to see if we pass.
 
-Run `pytest tests/models/test_marlin.py --forked`.
+Run `pytest tests/models/test_marlin.py`.
 """
+from dataclasses import dataclass
 
 import pytest
-import torch
-from dataclasses import dataclass
-from vllm.model_executor.layers.quantization import (
-    _QUANTIZATION_CONFIG_REGISTRY)
 
-capability = torch.cuda.get_device_capability()
-capability = capability[0] * 10 + capability[1]
-marlin_not_supported = (
-    capability < _QUANTIZATION_CONFIG_REGISTRY["marlin"].get_min_capability())
+from tests.quantization.utils import is_quant_method_supported
+
+from .utils import check_logprobs_close
 
 
 @dataclass
@@ -40,12 +36,12 @@ model_pairs = [
 
 
 @pytest.mark.flaky(reruns=2)
-@pytest.mark.skipif(marlin_not_supported,
+@pytest.mark.skipif(not is_quant_method_supported("marlin"),
                     reason="Marlin is not supported on this GPU type.")
 @pytest.mark.parametrize("model_pair", model_pairs)
 @pytest.mark.parametrize("dtype", ["half"])
 @pytest.mark.parametrize("max_tokens", [32])
-@pytest.mark.parametrize("num_logprobs", [3])
+@pytest.mark.parametrize("num_logprobs", [5])
 def test_models(
     vllm_runner,
     example_prompts,
@@ -54,45 +50,20 @@ def test_models(
     max_tokens: int,
     num_logprobs: int,
 ) -> None:
-    marlin_model = vllm_runner(model_pair.model_marlin, dtype=dtype)
-    marlin_outputs = marlin_model.generate_greedy_logprobs(
-        example_prompts, max_tokens, num_logprobs)
+    with vllm_runner(model_pair.model_marlin,
+                     dtype=dtype,
+                     quantization="marlin") as marlin_model:
+        marlin_outputs = marlin_model.generate_greedy_logprobs(
+            example_prompts, max_tokens, num_logprobs)
 
-    # Note: not sure why, but deleting just the model on Ada Lovelace
-    #   does not free the GPU memory. On Ampere, deleting the just model
-    #   frees the memory.
-    del marlin_model.model.llm_engine.driver_worker
-    del marlin_model
+    with vllm_runner(model_pair.model_gptq, dtype=dtype,
+                     quantization="gptq") as gptq_model:
+        gptq_outputs = gptq_model.generate_greedy_logprobs(
+            example_prompts, max_tokens, num_logprobs)
 
-    gptq_model = vllm_runner(model_pair.model_gptq, dtype=dtype)
-    gptq_outputs = gptq_model.generate_greedy_logprobs(example_prompts,
-                                                       max_tokens,
-                                                       num_logprobs)
-
-    # Note: not sure why, but deleting just the model on Ada Lovelace
-    #   does not free the GPU memory. On Ampere, deleting the just model
-    #   frees the memory.
-    del gptq_model.model.llm_engine.driver_worker
-    del gptq_model
-
-    # loop through the prompts
-    for prompt_idx in range(len(example_prompts)):
-        gptq_output_ids, gptq_output_str, gptq_logprobs = gptq_outputs[
-            prompt_idx]
-        marlin_output_ids, marlin_output_str, marlin_logprobs = marlin_outputs[
-            prompt_idx]
-
-        for idx, (gptq_output_id, marlin_output_id) in enumerate(
-                zip(gptq_output_ids, marlin_output_ids)):
-            # If sequence is not an exact match,
-            if marlin_output_id != gptq_output_id:
-                # Each predicted token must be in top 5 of the other's
-                assert gptq_output_id in marlin_logprobs[idx], (
-                    f"Test{prompt_idx}:\nGPTQ:\t{gptq_output_str!r}\n"
-                    f"Marlin:\t{marlin_output_str!r}")
-                assert marlin_output_id in gptq_logprobs[idx], (
-                    f"Test{prompt_idx}:\nGPTQ:\t{gptq_output_str!r}\n"
-                    f"Marlin:\t{marlin_output_str!r}")
-
-                # Break out since sequences will now diverge.
-                break
+    check_logprobs_close(
+        outputs_0_lst=gptq_outputs,
+        outputs_1_lst=marlin_outputs,
+        name_0="gptq",
+        name_1="marlin",
+    )

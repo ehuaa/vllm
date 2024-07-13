@@ -21,6 +21,8 @@ This document provides a high-level guide on integrating a `HuggingFace Transfor
 Start by forking our `GitHub`_ repository and then :ref:`build it from source <build_from_source>`.
 This gives you the ability to modify the codebase and test your model.
 
+.. tip::
+    If you don't want to fork the repository and modify vLLM's codebase, please refer to the "Out-of-Tree Model Integration" section below.
 
 1. Bring your model code
 ------------------------
@@ -35,7 +37,7 @@ For instance, vLLM's `OPT model <https://github.com/vllm-project/vllm/blob/main/
 2. Rewrite the :code:`forward` methods
 --------------------------------------
 
-Next, you need to rewrite the :code:`forward` methods of your model by following these steps:
+Next, you need to rewrite the :meth:`~torch.nn.Module.forward` method of your model by following these steps:
 
 1. Remove any unnecessary code, such as the code only used for training.
 2. Change the input parameters:
@@ -56,8 +58,8 @@ Next, you need to rewrite the :code:`forward` methods of your model by following
     -    return_dict: Optional[bool] = None,
     -) -> Union[Tuple, CausalLMOutputWithPast]:
     +    positions: torch.Tensor,
-    +    kv_caches: List[KVCache],
-    +    input_metadata: InputMetadata,
+    +    kv_caches: List[torch.Tensor],
+    +    attn_metadata: AttentionMetadata,
     +) -> Optional[SamplerOutput]:
 
 1. Update the code by considering that :code:`input_ids` and :code:`positions` are now flattened tensors.
@@ -73,7 +75,7 @@ Next, you need to rewrite the :code:`forward` methods of your model by following
 
 If your model is too large to fit into a single GPU, you can use tensor parallelism to manage it.
 To do this, substitute your model's linear and embedding layers with their tensor-parallel versions.
-For the embedding layer, you can simply replace :code:`nn.Embedding` with :code:`VocabParallelEmbedding`. For the output LM head, you can use :code:`ParallelLMHead`.
+For the embedding layer, you can simply replace :class:`torch.nn.Embedding` with :code:`VocabParallelEmbedding`. For the output LM head, you can use :code:`ParallelLMHead`.
 When it comes to the linear layers, we provide the following options to parallelize them:
 
 * :code:`ReplicatedLinear`: Replicates the inputs and weights across multiple GPUs. No memory saving.
@@ -93,4 +95,29 @@ This method should load the weights from the HuggingFace's checkpoint file and a
 5. Register your model
 ----------------------
 
-Finally, include your :code:`*ForCausalLM` class in `vllm/model_executor/models/__init__.py <https://github.com/vllm-project/vllm/blob/main/vllm/model_executor/models/__init__.py>`_ and register it to the :code:`_MODEL_REGISTRY` in `vllm/model_executor/model_loader.py <https://github.com/vllm-project/vllm/blob/main/vllm/model_executor/model_loader.py>`_.
+Finally, register your :code:`*ForCausalLM` class to the :code:`_MODELS` in `vllm/model_executor/models/__init__.py <https://github.com/vllm-project/vllm/blob/main/vllm/model_executor/models/__init__.py>`_.
+
+6. Out-of-Tree Model Integration
+--------------------------------------------
+
+We also provide a way to integrate a model without modifying the vLLM codebase. Step 2, 3, 4 are still required, but you can skip step 1 and 5.
+
+Just add the following lines in your code:
+
+.. code-block:: python
+
+    from vllm import ModelRegistry
+    from your_code import YourModelForCausalLM
+    ModelRegistry.register_model("YourModelForCausalLM", YourModelForCausalLM)
+
+If you are running api server with `python -m vllm.entrypoints.openai.api_server args`, you can wrap the entrypoint with the following code:
+
+.. code-block:: python
+
+    from vllm import ModelRegistry
+    from your_code import YourModelForCausalLM
+    ModelRegistry.register_model("YourModelForCausalLM", YourModelForCausalLM)
+    import runpy
+    runpy.run_module('vllm.entrypoints.openai.api_server', run_name='__main__')
+
+Save the above code in a file and run it with `python your_file.py args`.

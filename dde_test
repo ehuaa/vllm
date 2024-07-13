@@ -1,0 +1,10 @@
+"1572": {
+        "origin_prompt": "Please answer this question with ten or fewer words.\nWhat notation, enclosed in square brackets, is used to define the position of a crystal's zone axis in relation to its crystallographic reference axes?",
+        "prediction": "Heavy Mineral Index (HMI) for assessing sediment weathering.",
+        "gold": "zone symbol ([UVW])"
+    },
+    "1573": {
+        "origin_prompt": "Please answer this question with ten or fewer words.\nWhat is the term for the geological index that utilizes the presence of certain minerals with high specific gravity to gauge the extent to which a sediment has been weathered?",
+        "prediction": "Heavy Mineral Index (HMI) for assessing sediment weathering.",
+        "gold": "ZTR index"
+    }

@@ -1,4 +1,9 @@
-"""Example Python client for vllm.entrypoints.api_server"""
+"""Example Python client for vllm.entrypoints.api_server
+NOTE: The API server is used only for demonstration and simple performance
+benchmarks. It is not intended for production use.
+For production use, we recommend vllm.entrypoints.openai.api_server
+and the OpenAI client API
+"""
 
 import argparse
 import json
@@ -13,10 +18,10 @@ def clear_line(n: int = 1) -> None:
     for _ in range(n):
         print(LINE_UP, end=LINE_CLEAR, flush=True)
 
-with open('/mnt/geogpt-gpfs/zhijiang/home/czh/vllm/vllm_example_zj1.json') as f:
+with open('/nas/czh/vllm/vllm_example_zj1.json') as f:
         data = json.load(f)
 
-with open('/mnt/geogpt-gpfs/zhijiang/home/czh/vllm/lqa_v2.0.json') as f:
+with open('/nas/czh/vllm/lqa_v2.0.json') as f:
         data1 = json.load(f)
 print(data1)
 
@@ -53,7 +58,7 @@ def get_response(response: requests.Response) -> List[str]:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", type=str, default="10.244.37.98")
+    parser.add_argument("--host", type=str, default="10.200.48.45")
     parser.add_argument("--port", type=int, default=18192)
     # parser.add_argument("--host", type=str, default="10.244.127.79")
     # parser.add_argument("--port", type=int, default=8000)

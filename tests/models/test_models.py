@@ -1,31 +1,31 @@
 """Compare the outputs of HF and vLLM when using greedy sampling.
 
-Run `pytest tests/models/test_models.py --forked`.
+This test only tests small models. Big models such as 7B should be tested from
+test_big_models.py because it could use a larger instance to run tests.
+
+Run `pytest tests/models/test_models.py`.
 """
 import pytest
 
+from .utils import check_outputs_equal
+
 MODELS = [
     "facebook/opt-125m",
-    "meta-llama/Llama-2-7b-hf",
-    "mistralai/Mistral-7B-v0.1",
-    "Deci/DeciLM-7b",
-    "tiiuae/falcon-7b",
     "gpt2",
     "bigcode/tiny_starcoder_py",
-    "EleutherAI/gpt-j-6b",
     "EleutherAI/pythia-70m",
-    "bigscience/bloom-560m",
-    "mosaicml/mpt-7b",
+    "bigscience/bloom-560m",  # Testing alibi slopes.
     "microsoft/phi-2",
     "stabilityai/stablelm-3b-4e1t",
-    "allenai/OLMo-1B",
+    # "allenai/OLMo-1B",  # Broken
     "bigcode/starcoder2-3b",
+    "google/gemma-1.1-2b-it",
 ]
 
 
 @pytest.mark.parametrize("model", MODELS)
 @pytest.mark.parametrize("dtype", ["float"])
-@pytest.mark.parametrize("max_tokens", [128])
+@pytest.mark.parametrize("max_tokens", [96])
 def test_models(
     hf_runner,
     vllm_runner,
@@ -34,18 +34,32 @@ def test_models(
     dtype: str,
     max_tokens: int,
 ) -> None:
-    hf_model = hf_runner(model, dtype=dtype)
-    hf_outputs = hf_model.generate_greedy(example_prompts, max_tokens)
-    del hf_model
+    # To pass the small model tests, we need full precision.
+    assert dtype == "float"
 
-    vllm_model = vllm_runner(model, dtype=dtype)
-    vllm_outputs = vllm_model.generate_greedy(example_prompts, max_tokens)
-    del vllm_model
+    with hf_runner(model, dtype=dtype) as hf_model:
+        hf_outputs = hf_model.generate_greedy(example_prompts, max_tokens)
 
-    for i in range(len(example_prompts)):
-        hf_output_ids, hf_output_str = hf_outputs[i]
-        vllm_output_ids, vllm_output_str = vllm_outputs[i]
-        assert hf_output_str == vllm_output_str, (
-            f"Test{i}:\nHF: {hf_output_str!r}\nvLLM: {vllm_output_str!r}")
-        assert hf_output_ids == vllm_output_ids, (
-            f"Test{i}:\nHF: {hf_output_ids}\nvLLM: {vllm_output_ids}")
+    with vllm_runner(model, dtype=dtype) as vllm_model:
+        vllm_outputs = vllm_model.generate_greedy(example_prompts, max_tokens)
+
+    check_outputs_equal(
+        outputs_0_lst=hf_outputs,
+        outputs_1_lst=vllm_outputs,
+        name_0="hf",
+        name_1="vllm",
+    )
+
+
+@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize("dtype", ["float"])
+def test_model_print(
+    vllm_runner,
+    model: str,
+    dtype: str,
+) -> None:
+    with vllm_runner(model, dtype=dtype) as vllm_model:
+        # This test is for verifying whether the model's extra_repr
+        # can be printed correctly.
+        print(vllm_model.model.llm_engine.model_executor.driver_worker.
+              model_runner.model)

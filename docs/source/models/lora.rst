@@ -4,6 +4,9 @@ Using LoRA adapters
 ===================
 
 This document shows you how to use `LoRA adapters <https://arxiv.org/abs/2106.09685>`_ with vLLM on top of a base model.
+
+LoRA adapters can be used with any vLLM model that implements :class:`~vllm.model_executor.models.interfaces.SupportsLoRA`.
+
 Adapters can be efficiently served on a per request basis with minimal overhead. First we download the adapter(s) and save
 them locally with
 
@@ -90,7 +93,7 @@ Requests can specify the LoRA adapter as if it were any other model via the ``mo
 processed according to the server-wide LoRA configuration (i.e. in parallel with base model requests, and potentially other
 LoRA adapter requests if they were provided and ``max_loras`` is set high enough).
 
-The following is an example request 
+The following is an example request
 
 .. code-block:: bash
 

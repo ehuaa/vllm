@@ -1,10 +1,12 @@
-import torch
-from dataclasses import dataclass
-from vllm.model_executor.layers.rejection_sampler import RejectionSampler
-from typing import Optional
-from vllm.utils import in_wsl
 import time
-from typing import Callable
+from dataclasses import dataclass
+from typing import Callable, Optional
+
+import torch
+
+from vllm.model_executor.layers.spec_decode_base_sampler import (
+    SpecDecodeBaseSampler)
+from vllm.utils import is_pin_memory_available
 
 
 @dataclass
@@ -45,15 +47,15 @@ Timer = Callable[[], float]
 
 
 class AsyncMetricsCollector:
-    """Class which copies rejection sampler metrics from the device to CPU on a
-    non-default Torch stream.
+    """Class which copies rejection/typical-acceptance sampler metrics
+    from the device to CPU on a non-default Torch stream.
     """
 
     def __init__(self,
-                 rejection_sampler: RejectionSampler,
+                 spec_decode_sampler: SpecDecodeBaseSampler,
                  timer: Optional[Timer] = None,
                  collect_interval_s: float = 5.0):
-        self._rejection_sampler = rejection_sampler
+        self.spec_decode_sampler = spec_decode_sampler
         self._timer = time.time if timer is None else timer
 
         self._rank: Optional[int] = None
@@ -63,7 +65,7 @@ class AsyncMetricsCollector:
 
         self._in_flight_copy: Optional[torch.cuda.Event] = None
 
-        pin_memory = not in_wsl()
+        pin_memory = is_pin_memory_available()
         self._aggregate_num_accepted_tokens = torch.tensor(
             0, dtype=torch.long, device="cpu", pin_memory=pin_memory)
         self._aggregate_num_emitted_tokens = torch.tensor(
@@ -94,7 +96,7 @@ class AsyncMetricsCollector:
         return None
 
     def _should_collect_rejsample_metrics(self, now: float) -> bool:
-        """Return whether or not this iteration should print rejection sampling
+        """Return whether or not this iteration should print sampling
         metrics.
         """
         if self._rank != 0:
@@ -106,22 +108,24 @@ class AsyncMetricsCollector:
         return True
 
     def _copy_rejsample_metrics_async(self) -> torch.cuda.Event:
-        """Copy rejection sampling metrics (number of accepted tokens, etc) to
-        CPU asynchronously.
+        """Copy rejection/typical-acceptance sampling metrics 
+        (number of accepted tokens, etc) to CPU asynchronously.
 
         Returns a CUDA event recording when the copy is complete.
         """
+        assert self._copy_stream is not None
         self._copy_stream.wait_stream(torch.cuda.current_stream())
 
         with torch.cuda.stream(self._copy_stream):
             self._aggregate_num_accepted_tokens.copy_(
-                self._rejection_sampler.num_accepted_tokens, non_blocking=True)
+                self.spec_decode_sampler.num_accepted_tokens,
+                non_blocking=True)
             self._aggregate_num_emitted_tokens.copy_(
-                self._rejection_sampler.num_emitted_tokens, non_blocking=True)
+                self.spec_decode_sampler.num_emitted_tokens, non_blocking=True)
             # Number of draft tokens is calculated on CPU, so no copy is
             # required.
             self._aggregate_num_draft_tokens = (
-                self._rejection_sampler.num_draft_tokens)
+                self.spec_decode_sampler.num_draft_tokens)
 
         aggregate_metrics_ready = torch.cuda.Event()
         aggregate_metrics_ready.record(self._copy_stream)
@@ -145,15 +149,16 @@ class AsyncMetricsCollector:
         emitted_tokens = self._aggregate_num_emitted_tokens.item()
         draft_tokens = self._aggregate_num_draft_tokens
 
-        num_possible_tokens = self.get_max_num_accepted_tokens(draft_tokens, k)
+        max_num_emitted_tokens = self.get_max_num_emitted_tokens(
+            draft_tokens, k)
 
         if draft_tokens > 0:
             draft_acceptance_rate = accepted_tokens / draft_tokens
         else:
             draft_acceptance_rate = float("nan")
 
-        if num_possible_tokens > 0:
-            system_efficiency = emitted_tokens / num_possible_tokens
+        if max_num_emitted_tokens > 0:
+            system_efficiency = emitted_tokens / max_num_emitted_tokens
         else:
             system_efficiency = float("nan")
 
@@ -167,8 +172,22 @@ class AsyncMetricsCollector:
         )
 
     @staticmethod
-    def get_max_num_accepted_tokens(draft_tokens: int, k: int) -> int:
-        # Divide by k since batch size can be variable.
-        total_num_spec_seqs = draft_tokens / k
-        num_accepted_per_seq_if_all_accepted = k + 1
-        return int(total_num_spec_seqs / num_accepted_per_seq_if_all_accepted)
+    def get_max_num_emitted_tokens(draft_tokens: int, k: int) -> int:
+        """Calculate the number of emitted tokens, assuming all tokens are
+        accepted.
+
+        This is equal to the number of sequences that have been speculated on,
+        times (speculation len + 1). The +1 comes from the bonus token.
+        """
+        # Determine the number of sequences that have been speculated on. Since
+        # the batch size can be variable, we divide by k.
+        assert draft_tokens % k == 0
+        total_num_spec_seqs = draft_tokens // k
+
+        # A single sequence may emit k accepted tokens and one bonus token in
+        # the best case.
+        num_emitted_per_seq_if_all_accepted = k + 1
+
+        # The max num of emitted tokens is the number of speculated sequences
+        # times the max emitted per seq.
+        return total_num_spec_seqs * num_emitted_per_seq_if_all_accepted
