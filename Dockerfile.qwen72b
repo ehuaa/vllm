@@ -40,7 +40,7 @@ WORKDIR /workspace
 # install build and runtime dependencies
 COPY requirements-common.txt requirements-common.txt
 COPY requirements-cuda.txt requirements-cuda.txt
-RUN pip config set global.index-url https://mirrors.ustc.edu.cn/pypi/web/simple
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 # RUN pip config set install.trusted-host mirrors.aliyun.com
 RUN --mount=type=cache,target=/root/.cache/pip \
     python3 -m pip install -r requirements-cuda.txt
