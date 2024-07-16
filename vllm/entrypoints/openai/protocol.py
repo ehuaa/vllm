@@ -717,7 +717,7 @@ class BatchResponseData(OpenAIBaseModel):
     request_id: str
 
     # The body of the response.
-    body: Union[ChatCompletionResponse, ]
+    body: Optional[ChatCompletionResponse] = None
 
 
 class BatchRequestOutput(OpenAIBaseModel):
