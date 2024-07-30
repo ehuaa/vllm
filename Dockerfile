@@ -5,12 +5,12 @@
 # docs/source/dev/dockerfile/dockerfile.rst and
 # docs/source/assets/dev/dockerfile-stages-dependency.png
 
-ARG CUDA_VERSION=12.4.1
+ARG CUDA_VERSION=12.3.2
 #################### BASE BUILD IMAGE ####################
 # prepare basic build environment
 FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu22.04 AS base
 
-ARG CUDA_VERSION=12.4.1
+ARG CUDA_VERSION=12.3.2
 ARG PYTHON_VERSION=3
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -142,6 +142,7 @@ ENV MAX_JOBS=${max_jobs}
 WORKDIR /usr/src/mamba
 
 COPY requirements-mamba.txt requirements-mamba.txt
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
 # Download the wheel or build it if a pre-compiled release doesn't exist
 RUN pip --verbose wheel -r requirements-mamba.txt \
@@ -152,11 +153,12 @@ RUN pip --verbose wheel -r requirements-mamba.txt \
 #################### vLLM installation IMAGE ####################
 # image with vLLM installed
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu22.04 AS vllm-base
-ARG CUDA_VERSION=12.4.1
+ARG CUDA_VERSION=12.3.2
 WORKDIR /vllm-workspace
 
 RUN apt-get update -y \
     && apt-get install -y python3-pip git vim
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
 # Workaround for https://github.com/openai/triton/issues/2507 and
 # https://github.com/pytorch/pytorch/issues/107960 -- hopefully

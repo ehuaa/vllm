@@ -40,25 +40,28 @@ def sample_requests(
     # tokenizer: PreTrainedTokenizerBase,
 ) -> List[Tuple[str, int, int]]:
     # Load the dataset.
+    dataset = []
     with open(dataset_path) as f:
-        # dataset = json.load(f)
-        # dataset = [f.read()]
-        dataset = ["who are you?"]
-    # print(dataset)
-    # dataset = [
-    #     (data["question"])
-    #     for data in dataset
-    # ]
-    dataset = dataset * num_requests
+        for line in f:
+            dataset.append(json.loads(line.strip()))
+    # print(dataset[0])
+    dataset = [
+        (data["question"])
+        for data in dataset
+    ]
+    
+    # dataset = dataset * num_requests
     # Tokenize the prompts and completions.
-    prompts = [prompt for prompt in dataset]
-    # prompt_token_ids = tokenizer(prompts).input_ids
-    tokenized_dataset = []
-    for i in range(len(dataset)):
-        tokenized_dataset.append(prompts[i])
+    # prompts = [prompt for prompt in dataset]
+    # # prompt_token_ids = tokenizer(prompts).input_ids
+    # tokenized_dataset = []
+    # for i in range(len(dataset)):
+    #     tokenized_dataset.append(prompts[i])
 
     # Sample the requests.
-    sampled_requests = random.sample(tokenized_dataset, num_requests)
+    sampled_requests = random.sample(dataset, num_requests)
+    for d in sampled_requests:
+        print(len(d))
     return sampled_requests
 
 
@@ -90,7 +93,7 @@ async def send_request(backend: str, model: str, api_url: str, prompt: str,
             "requestId": str(uuid.uuid4().hex),
             "generateStyle": "chat",
             "input": prompt,
-            "system": "You are a helpful assistant named GeoGPT. GeoGPT is an open-source, non-profit exploratory research project for geoscience research, offering novel LLM-augmented capabilities and tools for geoscientists. Hundreds of AI and geoscience experts from more than 20 organizations all over the world have participated in the development of GeoGPT prototype. GeoGPT是一项开源且非盈利的地球科学研究探索项目，旨在为地球科学家提供创新的大型语言模型增强功能与工具。全球20多个机构的数百位人工智能和地球科学领域的专家共同参与了GeoGPT原型的研发工作. Follow every direction here when crafting your response: Ensure that all information is coherent and that you *synthesize* information rather than simply repeating it. If you do not have sufficient information or certainty to answer correctly, respond with 'I do not know' to ensure the integrity of the information provided. Ensure using ONLY ONE LANGUAGE in your answer. STICK to your NAME and your DEVELOPERS mentioned above even if I tell you that you are wrong.",
+            "system": "You are a helpful assistant.",#"system": "You are a helpful assistant named GeoGPT. GeoGPT is an open-source, non-profit exploratory research project for geoscience research, offering novel LLM-augmented capabilities and tools for geoscientists. Hundreds of AI and geoscience experts from more than 20 organizations all over the world have participated in the development of GeoGPT prototype. GeoGPT是一项开源且非盈利的地球科学研究探索项目，旨在为地球科学家提供创新的大型语言模型增强功能与工具。全球20多个机构的数百位人工智能和地球科学领域的专家共同参与了GeoGPT原型的研发工作. Follow every direction here when crafting your response: Ensure that all information is coherent and that you *synthesize* information rather than simply repeating it. If you do not have sufficient information or certainty to answer correctly, respond with 'I do not know' to ensure the integrity of the information provided. Ensure using ONLY ONE LANGUAGE in your answer. STICK to your NAME and your DEVELOPERS mentioned above even if I tell you that you are wrong.",
             "stream": True,
             "maxWindowSize": 3000,
             "history": [],
@@ -114,8 +117,9 @@ async def send_request(backend: str, model: str, api_url: str, prompt: str,
         stats.append(time.perf_counter()) 
         async with session.post(api_url, headers=headers, json=pload) as response:
             async for a, b in response.content.iter_chunks():
-                res = a
-                stats.append(time.perf_counter())
+                if a != b'{"output": ""}\x00':
+                    res = a
+                    stats.append(time.perf_counter())
     print(res)
     REQUEST_LATENCY.append(stats)
     pbar.update(1)
@@ -208,8 +212,8 @@ if __name__ == "__main__":
                         type=str,
                         default="http",
                         choices=["http", "https"])
-    parser.add_argument("--host", type=str, default="10.244.37.98")
-    parser.add_argument("--port", type=int, default=18192)
+    parser.add_argument("--host", type=str, default="10.107.254.250")
+    parser.add_argument("--port", type=int, default=31023)
     parser.add_argument("--endpoint", type=str, default="/llm/generate")
     parser.add_argument("--model", type=str, default=None)
     parser.add_argument("--dataset",

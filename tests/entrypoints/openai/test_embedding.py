@@ -6,7 +6,7 @@ import pytest
 
 from ...utils import RemoteOpenAIServer
 
-EMBEDDING_MODEL_NAME = "intfloat/e5-mistral-7b-instruct"
+EMBEDDING_MODEL_NAME = "/nas/czh/sfr/SFR-Embedding-Mistral"
 
 
 @pytest.fixture(scope="module")

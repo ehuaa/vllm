@@ -57,6 +57,13 @@ from vllm.version import __version__ as VLLM_VERSION
 
 TIMEOUT_KEEP_ALIVE = 5  # seconds
 
+
+def get_detailed_instruct(task_description: str, query: str) -> str:
+    return f'Instruct: {task_description}\nQuery: {query}'
+task = 'Given a web search query, retrieve relevant passages that answer the query'
+max_length = 4096
+
+
 logger = init_logger(__name__)
 engine: AsyncLLMEngine
 engine_args: AsyncEngineArgs
@@ -370,6 +377,10 @@ async def create_completion(request: CompletionRequest, raw_request: Request):
 
 @router.post("/v1/embeddings")
 async def create_embedding(request: EmbeddingRequest, raw_request: Request):
+    # assume request.input are all List[str]
+    tokenizer.add_eos_token = True
+    prompts = [get_detailed_instruct(task, it) for it in request.input]
+    request.input = [tokenizer(prompt, max_length=max_length - 1, padding=True, truncation=True, return_tensors="pt")["input_ids"][0].numpy().tolist() for prompt in prompts]
     generator = await openai_serving_embedding.create_embedding(
         request, raw_request)
     if isinstance(generator, ErrorResponse):

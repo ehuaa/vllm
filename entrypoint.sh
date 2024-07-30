@@ -17,7 +17,7 @@ echo "MODEL config is $MODEL"
 
 kv_cache_dtype="auto"
 gpu_usage=0.92
-max_num_seqs=128
+max_num_seqs=256
 port=8000
 
 if [ -n "$KV_CACHE_DTYPE" ]; then
@@ -37,6 +37,30 @@ else
     PREFIX_CACHING_ARG=""
 fi
 
+if [ -n "$DISABLE_CUSTOM_ALL_REDUCE" ]; then
+    DISABLE_CUSTOM_ALL_REDUCE_ARG="--disable-custom-all-reduce"
+else
+    DISABLE_CUSTOM_ALL_REDUCE_ARG=""
+fi
+
+if [ -n "$DISABLE_SLIDING_WINDOW" ]; then
+    DISABLE_SLIDING_WINDOW_ARG="--disable-sliding-window"
+else
+    DISABLE_SLIDING_WINDOW_ARG=""
+fi
+
+if [ -n "$ENFORCE_EAGER" ]; then
+    ENFORCE_EAGER_ARG="--enforce-eager"
+else
+    ENFORCE_EAGER_ARG=""
+fi
+
+if [ -n "$DISABLE_LOG_REQUESTS" ]; then
+    DISABLE_LOG_ARG="--disable-log-requests"
+else
+    DISABLE_LOG_ARG=""
+fi
+
 
 if [ -n "$GPU_USAGE" ]; then
    gpu_usage=$GPU_USAGE
@@ -53,6 +77,13 @@ if [ -n "$PORT" ]; then
 fi
 echo "PORT is $port"
 #while true; do sleep 1s; done;
-python3 -m vllm.entrypoints.openai.api_server --port ${port} --host 0.0.0.0 \
---gpu-memory-utilization ${gpu_usage} --tensor-parallel-size=${TP_SIZE} --served-model-name ${MODEL_TYPE} \
---model ${MODEL} --trust-remote-code --max-num-seqs=${max_num_seqs} --kv-cache-dtype ${kv_cache_dtype} $CHUNKED_PREFILL_ARG $PREFIX_CACHING_ARG
+
+if [ -n "$EMBEDDING_OFFLINE" ]; then
+    python3 -m vllm.entrypoints.offline_embedding_server --port ${port} --host 0.0.0.0 --model ${MODEL} $ENFORCE_EAGER_ARG $DISABLE_LOG_ARG $DISABLE_SLIDING_WINDOW_ARG
+elif [ -n "$EMBEDDING_ONLINE" ]; then
+    python3 -m vllm.entrypoints.openai.api_server --port ${port} --host 0.0.0.0 --model ${MODEL} $ENFORCE_EAGER_ARG $DISABLE_LOG_ARG $DISABLE_SLIDING_WINDOW_ARG
+else
+    python3 -m vllm.entrypoints.openai.api_server --port ${port} --host 0.0.0.0 \
+    --gpu-memory-utilization ${gpu_usage} --tensor-parallel-size=${TP_SIZE} --served-model-name ${MODEL_TYPE} \
+    --model ${MODEL} --trust-remote-code --max-num-seqs=${max_num_seqs} --kv-cache-dtype ${kv_cache_dtype} $CHUNKED_PREFILL_ARG $PREFIX_CACHING_ARG $DISABLE_CUSTOM_ALL_REDUCE_ARG $DISABLE_SLIDING_WINDOW_ARG $ENFORCE_EAGER_ARG
+fi

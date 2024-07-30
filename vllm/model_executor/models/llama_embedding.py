@@ -28,7 +28,7 @@ class LlamaEmbeddingModel(nn.Module):
     ) -> None:
         super().__init__()
         self.model = LlamaModel(**kwargs)
-        self._pooler = Pooler(pooling_type=PoolingType.LAST, normalize=True)
+        self._pooler = Pooler(pooling_type=PoolingType.LAST, normalize=False)
 
     def forward(
         self,
