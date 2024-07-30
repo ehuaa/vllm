@@ -18,6 +18,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+logs/
+examples/logs/
 lib64/
 parts/
 sdist/
