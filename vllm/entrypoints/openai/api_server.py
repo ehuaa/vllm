@@ -124,10 +124,17 @@ def load_chat_template(args, tokenizer):
 async def get_gen_prompt_ids_with_history(messages, prompt, system_message, 
                                       max_window_size=3000, 
                                       max_content_round=20) -> str:
-    sep = "<|im_end|>"
-    roles = ("<|im_start|>user", "<|im_start|>assistant")
-    
-    tmp_ret = "<|im_start|>system\n{system_message}".format(system_message=system_message) + sep + "\n"
+    if args.served_model_name.startswith("Qwen"):
+        sep = "<|im_end|>"
+        roles = ("<|im_start|>user", "<|im_start|>assistant")
+        has_seperate = "\n"
+        tmp_ret = "<|im_start|>system\n{system_message}".format(system_message=system_message) + sep + "\n"
+    elif args.served_model_name.startswith("Llama3"):
+        sep = "<|eot_id|>"
+        roles = ("<|start_header_id|>user<|end_header_id|>\n", "<|start_header_id|>assistant<|end_header_id|>\n")
+        has_seperate = ""
+        tmp_ret = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system_message}".format(system_message=system_message) + sep
+        
     token_ids = tokenizer(tmp_ret).input_ids
     token_num = len(token_ids)
     content_round = 0
@@ -137,12 +144,12 @@ async def get_gen_prompt_ids_with_history(messages, prompt, system_message,
     history_token_ids = deque()
     for msg_user, msg_assistant in reversed(messages):
         if msg_user:
-            tmp_ret += roles[0] + "\n" + msg_user + sep + "\n"
+            tmp_ret += roles[0] + "\n" + msg_user + sep + has_seperate
         else:
             tmp_ret += roles[0] + "\n"
             
         if msg_assistant:
-            tmp_ret += roles[1] + "\n" + msg_assistant + sep + "\n"
+            tmp_ret += roles[1] + "\n" + msg_assistant + sep + has_seperate
         else:
             tmp_ret += roles[1] + "\n"
         
@@ -158,7 +165,7 @@ async def get_gen_prompt_ids_with_history(messages, prompt, system_message,
     history_token_ids.appendleft(token_ids)
     # add prompt to token_ids
     tmp_ret = ""
-    tmp_ret += roles[0] + "\n" + prompt + sep + "\n"
+    tmp_ret += roles[0] + "\n" + prompt + sep + has_seperate
     tmp_ret += roles[1] + "\n"
     history_token_ids.append(tokenizer(tmp_ret).input_ids)
     
@@ -296,7 +303,12 @@ async def llm_generate(request: Request) -> Response:
         logger.error("requestId: " + str(request_id) + "\n" + error_check_ret.message)
         return error_check_ret
     
-    sampling_params["stop"] = ["<|im_end|>"]
+    stop = []
+    if tokenizer.added_tokens_encoder is not None:
+        stop.extend(list(tokenizer.added_tokens_encoder.keys()))
+    else:
+        stop.append(tokenizer.eos_token)
+    sampling_params["stop"] = stop
     
     # best_of param should be set to 1 when not using beam search, in case of passing in an outlier best_of value 
     # which will stuck the main process for very long time.
