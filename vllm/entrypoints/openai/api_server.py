@@ -124,17 +124,22 @@ def load_chat_template(args, tokenizer):
 async def get_gen_prompt_ids_with_history(messages, prompt, system_message, 
                                       max_window_size=3000, 
                                       max_content_round=20) -> str:
-    if args.served_model_name.startswith("Qwen"):
-        sep = "<|im_end|>"
-        roles = ("<|im_start|>user", "<|im_start|>assistant")
+    if args.served_model_name[0].startswith("Qwen"):
+        sep = ("<|im_end|>", "<|im_end|>")
+        roles = ("<|im_start|>user\n", "<|im_start|>assistant\n")
         has_seperate = "\n"
-        tmp_ret = "<|im_start|>system\n{system_message}".format(system_message=system_message) + sep + "\n"
-    elif args.served_model_name.startswith("Llama3"):
-        sep = "<|eot_id|>"
-        roles = ("<|start_header_id|>user<|end_header_id|>\n", "<|start_header_id|>assistant<|end_header_id|>\n")
+        tmp_ret = "<|im_start|>system\n{system_message}".format(system_message=system_message) + sep[0] + "\n"
+    elif args.served_model_name[0].startswith("Llama3"):
+        sep = ("<|eot_id|>", "<|eot_id|>")
+        roles = ("<|start_header_id|>user<|end_header_id|>\n\n", "<|start_header_id|>assistant<|end_header_id|>\n\n")
         has_seperate = ""
-        tmp_ret = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system_message}".format(system_message=system_message) + sep
-        
+        tmp_ret = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system_message}".format(system_message=system_message) + sep[0]
+    elif args.served_model_name[0].startswith("Mixtral"):
+        sep = (" [/INST]", "</s>")
+        roles = (" [INST] ", " ")
+        has_seperate = ""
+        tmp_ret = "<s> [INST] {system_message}\n\n".format(system_message=system_message)
+    
     token_ids = tokenizer(tmp_ret).input_ids
     token_num = len(token_ids)
     content_round = 0
@@ -143,15 +148,19 @@ async def get_gen_prompt_ids_with_history(messages, prompt, system_message,
     # add chat history to input_ids
     history_token_ids = deque()
     for msg_user, msg_assistant in reversed(messages):
-        if msg_user:
-            tmp_ret += roles[0] + "\n" + msg_user + sep + has_seperate
+        if not args.served_model_name[0].startswith("Mixtral"):
+            if msg_user:
+                tmp_ret += roles[0] + msg_user + sep[0] + has_seperate
+            else:
+                tmp_ret += roles[0]
+                
+            if msg_assistant:
+                tmp_ret += roles[1] + msg_assistant + sep[1] + has_seperate
+            else:
+                tmp_ret += roles[1]
         else:
-            tmp_ret += roles[0] + "\n"
-            
-        if msg_assistant:
-            tmp_ret += roles[1] + "\n" + msg_assistant + sep + has_seperate
-        else:
-            tmp_ret += roles[1] + "\n"
+            tmp_ret += msg_user + sep[0] + has_seperate
+            tmp_ret += roles[1] + msg_assistant + sep[1] + roles[0]
         
         tmp_token_ids = tokenizer(tmp_ret).input_ids
         content_round += 1
@@ -165,8 +174,12 @@ async def get_gen_prompt_ids_with_history(messages, prompt, system_message,
     history_token_ids.appendleft(token_ids)
     # add prompt to token_ids
     tmp_ret = ""
-    tmp_ret += roles[0] + "\n" + prompt + sep + has_seperate
-    tmp_ret += roles[1] + "\n"
+    if args.served_model_name[0].startswith("Mixtral"):
+        tmp_ret += prompt + sep[0]
+    else:
+        tmp_ret += roles[0] + prompt + sep[0] + has_seperate
+        tmp_ret += roles[1]
+    
     history_token_ids.append(tokenizer(tmp_ret).input_ids)
     
     token_ids = list(itertools.chain(*list(history_token_ids)))
@@ -294,6 +307,7 @@ async def llm_generate(request: Request) -> Response:
     max_length = request_dict.pop("maxLength", 8192)
     sampling_params = request_dict.pop("params")
     request_id = request_dict.pop("requestId", random_uuid())
+    stop_words = request_dict.pop("stopWords", [])
 
     # generate prompt
     prompt_ids = await get_gen_prompt_ids_with_history(chat_history, prompt, system_message, max_window_size, max_content_round)
@@ -308,6 +322,10 @@ async def llm_generate(request: Request) -> Response:
         stop.extend(list(tokenizer.added_tokens_encoder.keys()))
     else:
         stop.append(tokenizer.eos_token)
+        
+    if stop_words:
+        for singleStopWord in stop_words:
+            stop.append(singleStopWord)
     sampling_params["stop"] = stop
     
     # best_of param should be set to 1 when not using beam search, in case of passing in an outlier best_of value 
