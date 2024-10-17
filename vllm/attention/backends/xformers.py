@@ -11,6 +11,8 @@ from xformers.ops.fmha.attn_bias import (AttentionBias,
 
 from vllm.attention.backends.abstract import (AttentionBackend, AttentionImpl,
                                               AttentionMetadata, AttentionType)
+from vllm.attention.backends.utils import (CommonAttentionState,
+                                           CommonMetadataBuilder)
 from vllm.attention.ops.paged_attn import (PagedAttention,
                                            PagedAttentionMetadata)
 from vllm.logger import init_logger
@@ -31,6 +33,14 @@ class XFormersBackend(AttentionBackend):
     @staticmethod
     def get_metadata_cls() -> Type["AttentionMetadata"]:
         return XFormersMetadata
+
+    @staticmethod
+    def get_builder_cls() -> Type["XFormersMetadataBuilder"]:
+        return XFormersMetadataBuilder
+
+    @staticmethod
+    def get_state_cls() -> Type["CommonAttentionState"]:
+        return CommonAttentionState
 
     @staticmethod
     def get_kv_cache_shape(
@@ -107,6 +117,9 @@ class XFormersMetadata(AttentionMetadata, PagedAttentionMetadata):
 
     # Maximum query length in the batch. None for decoding.
     max_query_len: Optional[int] = None
+
+    # Max number of query tokens among request in the batch.
+    max_decode_query_len: Optional[int] = None
 
     # (batch_size + 1,). The cumulative subquery lengths of the sequences in
     # the batch, used to index into subquery. E.g., if the subquery length
@@ -362,6 +375,11 @@ def _get_seq_len_block_table_args(
         raise AttributeError(f"Invalid attention type {str(attn_type)}")
 
 
+class XFormersMetadataBuilder(CommonMetadataBuilder[XFormersMetadata]):
+
+    _metadata_cls = XFormersMetadata
+
+
 class XFormersImpl(AttentionImpl[XFormersMetadata]):
     """
     If the input tensors contain prompt tokens, the layout is as follows:
@@ -398,9 +416,14 @@ class XFormersImpl(AttentionImpl[XFormersMetadata]):
         sliding_window: Optional[int],
         kv_cache_dtype: str,
         blocksparse_params: Optional[Dict[str, Any]] = None,
+        logits_soft_cap: Optional[float] = None,
     ) -> None:
-        assert blocksparse_params is None, ValueError(
-            "XFormer does not support block-sparse attention.")
+        if blocksparse_params is not None:
+            raise ValueError(
+                "XFormers does not support block-sparse attention.")
+        if logits_soft_cap is not None:
+            raise ValueError(
+                "XFormers does not support attention logits soft capping.")
         self.num_heads = num_heads
         self.head_size = head_size
         self.scale = float(scale)
@@ -425,9 +448,10 @@ class XFormersImpl(AttentionImpl[XFormersMetadata]):
         query: torch.Tensor,
         key: Optional[torch.Tensor],
         value: Optional[torch.Tensor],
-        kv_cache: Optional[torch.Tensor],
+        kv_cache: torch.Tensor,
         attn_metadata: "XFormersMetadata",
-        kv_scale: float = 1.0,
+        k_scale: float = 1.0,
+        v_scale: float = 1.0,
         attn_type: AttentionType = AttentionType.DECODER,
     ) -> torch.Tensor:
         """Forward pass with xFormers and PagedAttention.
@@ -468,6 +492,8 @@ class XFormersImpl(AttentionImpl[XFormersMetadata]):
             key: shape = [num_tokens, num_kv_heads * head_size]
             value: shape = [num_tokens, num_kv_heads * head_size]
             kv_cache = [2, num_blocks, block_size * num_kv_heads * head_size]
+                NOTE: kv_cache will be an empty tensor with shape [0]
+                for profiling run.
             attn_metadata: Metadata for attention.
             attn_type: Select attention type, between encoder attention,
                        decoder self-attention, or encoder/decoder cross-
@@ -501,7 +527,7 @@ class XFormersImpl(AttentionImpl[XFormersMetadata]):
         # which KV cache memory-mapping & which
         # seqlen datastructures we utilize
 
-        if (attn_type != AttentionType.ENCODER and kv_cache is not None):
+        if (attn_type != AttentionType.ENCODER and kv_cache.numel() > 0):
             # KV-cache during decoder-self- or
             # encoder-decoder-cross-attention, but not
             # during encoder attention.
@@ -531,7 +557,7 @@ class XFormersImpl(AttentionImpl[XFormersMetadata]):
                                                     value_cache,
                                                     updated_slot_mapping,
                                                     self.kv_cache_dtype,
-                                                    kv_scale)
+                                                    k_scale, v_scale)
 
         if attn_type != AttentionType.ENCODER:
             # Decoder self-attention supports chunked prefill.
@@ -567,7 +593,7 @@ class XFormersImpl(AttentionImpl[XFormersMetadata]):
 
         if prefill_meta := attn_metadata.prefill_metadata:
             # Prompt run.
-            if kv_cache is None or prefill_meta.block_tables.numel() == 0:
+            if kv_cache.numel() == 0 or prefill_meta.block_tables.numel() == 0:
                 # normal attention.
                 # block tables are empty if the prompt does not have a cached
                 # prefix.
@@ -588,6 +614,7 @@ class XFormersImpl(AttentionImpl[XFormersMetadata]):
                     query,
                     key,
                     value,
+                    self.kv_cache_dtype,
                     key_cache,
                     value_cache,
                     prefill_meta.block_tables,
@@ -597,6 +624,8 @@ class XFormersImpl(AttentionImpl[XFormersMetadata]):
                     prefill_meta.max_query_len,
                     self.alibi_slopes,
                     self.sliding_window,
+                    k_scale,
+                    v_scale,
                 )
                 assert output[:num_prefill_tokens].shape == out.shape
                 output[:num_prefill_tokens] = out
@@ -620,7 +649,8 @@ class XFormersImpl(AttentionImpl[XFormersMetadata]):
                 self.num_kv_heads,
                 self.scale,
                 self.alibi_slopes,
-                kv_scale,
+                k_scale,
+                v_scale,
             )
 
         # Reshape the output tensor.

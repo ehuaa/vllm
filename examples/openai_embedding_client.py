@@ -116,9 +116,11 @@ with open('/nas/czh/sfr/539667.jsonl', 'r', encoding='utf-8') as file:
         data.append(row)
 
 responses = client.embeddings.create(
-    input=data,
+    input=[
+        "Hello my name is",
+        "The best thing about vLLM is that it supports many different models"
+    ],
     model=model,
-    encoding_format="float",
 )
 
 for data in responses.data:

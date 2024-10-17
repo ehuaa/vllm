@@ -2,8 +2,8 @@ from typing import List, Optional, Set, Tuple
 
 import torch
 
-from vllm.sequence import (ExecuteModelRequest, SamplerOutput,
-                           SequenceGroupMetadata)
+from vllm.model_executor.layers.sampler import SamplerOutput
+from vllm.sequence import ExecuteModelRequest, SequenceGroupMetadata
 from vllm.spec_decode.interfaces import (SpeculativeProposals,
                                          SpeculativeProposer)
 from vllm.spec_decode.proposer_worker_base import ProposerWorkerBase
@@ -108,7 +108,7 @@ class Top1Proposer(SpeculativeProposer):
             proposal_token_ids=proposal_tokens,
             proposal_probs=proposal_probs,
             proposal_lens=proposal_lens,
-        )
+            no_proposals=maybe_sampler_output is None)
 
         return proposals
 
@@ -138,7 +138,7 @@ class Top1Proposer(SpeculativeProposer):
 
             # Currently only proposal lens of 0 or the global batch proposal len
             # are supported.
-            # If max_proposal_len is defined, then we shall no exccess this
+            # If max_proposal_len is defined, then we shall not exceed this
             # quota for nonzero_proposal
             new_k = 0
             if (self.max_proposal_len is None
@@ -219,7 +219,7 @@ class Top1Proposer(SpeculativeProposer):
         proposal_lens: List[int],
         nonzero_proposal_len_indices: List[int],
         sampler_transposed: bool,
-    ) -> Tuple[torch.Tensor, torch.tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """After speculations are produced, merge the speculation results with
         the skipped sequences.
         """
@@ -242,7 +242,7 @@ class Top1Proposer(SpeculativeProposer):
             return proposal_tokens, proposal_probs, proposal_lens_tensor
 
         sampler_output = maybe_sampler_output
-        proposal_tokens, proposal_probs, _ = sampler_output_to_torch(
+        proposal_tokens, proposal_probs, *_ = sampler_output_to_torch(
             sampler_output, sampler_transposed)
 
         # Now, reformat the output GPU tensors such that each sequence has

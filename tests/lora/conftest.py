@@ -65,10 +65,7 @@ def should_do_global_cleanup_after_test(request) -> bool:
     to initialize torch.
     """
 
-    if request.node.get_closest_marker("skip_global_cleanup"):
-        return False
-
-    return True
+    return not request.node.get_closest_marker("skip_global_cleanup")
 
 
 @pytest.fixture(autouse=True)
@@ -159,8 +156,14 @@ def dummy_model_gate_up() -> nn.Module:
 
 
 @pytest.fixture(scope="session")
-def sql_lora_files():
-    return snapshot_download(repo_id="yard1/llama-2-7b-sql-lora-test")
+def sql_lora_huggingface_id():
+    # huggingface repo id is used to test lora runtime downloading.
+    return "yard1/llama-2-7b-sql-lora-test"
+
+
+@pytest.fixture(scope="session")
+def sql_lora_files(sql_lora_huggingface_id):
+    return snapshot_download(repo_id=sql_lora_huggingface_id)
 
 
 @pytest.fixture(scope="session")
@@ -168,6 +171,11 @@ def mixtral_lora_files():
     # Note: this module has incorrect adapter_config.json to test
     # https://github.com/vllm-project/vllm/pull/5909/files.
     return snapshot_download(repo_id="SangBinCho/mixtral-lora")
+
+
+@pytest.fixture(scope="session")
+def mixtral_lora_files_all_target_modules():
+    return snapshot_download(repo_id="dyang415/mixtral-lora-v0")
 
 
 @pytest.fixture(scope="session")
@@ -189,6 +197,16 @@ def baichuan_lora_files():
 def baichuan_zero_lora_files():
     # all the lora_B weights are initialized to zero.
     return snapshot_download(repo_id="jeeejeee/baichuan7b-zero-init")
+
+
+@pytest.fixture(scope="session")
+def baichuan_regex_lora_files():
+    return snapshot_download(repo_id="jeeejeee/baichuan-7b-lora-zero-regex")
+
+
+@pytest.fixture(scope="session")
+def minicpmv_lora_files():
+    return snapshot_download(repo_id="jeeejeee/minicpmv25-lora-pokemon")
 
 
 @pytest.fixture(scope="session")

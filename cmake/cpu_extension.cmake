@@ -1,4 +1,5 @@
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD 17)
 
 #
 # Define environment variables for special configurations
@@ -83,10 +84,12 @@ endif()
 
 message(STATUS "CPU extension compile flags: ${CXX_COMPILE_FLAGS}")
 
+list(APPEND LIBS numa)
 
-#
-# Define extension targets
-#
+# Appending the dnnl library for the AVX2 and AVX512, as it is not utilized by Power architecture.
+if (AVX2_FOUND OR AVX512_FOUND)
+    list(APPEND LIBS dnnl)
+endif()
 
 #
 # _C extension
@@ -95,20 +98,30 @@ set(VLLM_EXT_SRC
     "csrc/cpu/activation.cpp"
     "csrc/cpu/attention.cpp"
     "csrc/cpu/cache.cpp"
+    "csrc/cpu/utils.cpp"
     "csrc/cpu/layernorm.cpp"
     "csrc/cpu/pos_encoding.cpp"
     "csrc/cpu/torch_bindings.cpp")
+
+if (AVX512_FOUND AND NOT AVX512_DISABLED)
+    set(VLLM_EXT_SRC
+        "csrc/cpu/quant.cpp"
+        ${VLLM_EXT_SRC})
+endif()
+
+#
+# Define extension targets
+#
 
 define_gpu_extension_target(
     _C
     DESTINATION vllm
     LANGUAGE CXX
     SOURCES ${VLLM_EXT_SRC}
+    LIBRARIES ${LIBS}
     COMPILE_FLAGS ${CXX_COMPILE_FLAGS}
     USE_SABI 3
     WITH_SOABI
 )
 
-add_custom_target(default)
 message(STATUS "Enabling C extension.")
-add_dependencies(default _C)
