@@ -9,8 +9,8 @@ ARG CUDA_VERSION=12.3.2
 #################### BASE BUILD IMAGE ####################
 # prepare basic build environment
 FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu20.04 AS base
-ARG CUDA_VERSION=12.4.1
-ARG PYTHON_VERSION=3.12
+ARG CUDA_VERSION=12.3.2
+ARG PYTHON_VERSION=3
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install Python and other dependencies
@@ -95,6 +95,7 @@ ARG SCCACHE_BUCKET_NAME=vllm-build-sccache
 ARG SCCACHE_REGION_NAME=us-west-2
 ARG SCCACHE_S3_NO_CREDENTIALS=0
 # if USE_SCCACHE is set, use sccache to speed up compilation
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=bind,source=.git,target=.git \
     if [ "$USE_SCCACHE" = "1" ]; then \
@@ -147,8 +148,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 #################### vLLM installation IMAGE ####################
 # image with vLLM installed
 FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu22.04 AS vllm-base
-ARG CUDA_VERSION=12.4.1
-ARG PYTHON_VERSION=3.12
+ARG CUDA_VERSION=12.3.3
+ARG PYTHON_VERSION=3
 WORKDIR /vllm-workspace
 ENV DEBIAN_FRONTEND=noninteractive
 
