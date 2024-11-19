@@ -1,13 +1,16 @@
-FROM pytorch/cuda:2023.12
+FROM py23.12:latest
 
 WORKDIR /workspace
 
 # install build and runtime dependencies
 COPY requirements-common.txt requirements-common.txt
 COPY requirements-cuda.txt requirements-cuda.txt
+COPY requirements-build.txt requirements-build.txt
 RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 RUN --mount=type=cache,target=/root/.cache/pip \
     python3 -m pip install -r requirements-cuda.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 -m pip install -r requirements-build.txt
 
 # add code to docker
 COPY . /opt/vllm-main/

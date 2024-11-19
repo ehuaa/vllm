@@ -41,14 +41,12 @@ def sample_requests(
 ) -> List[Tuple[str, int, int]]:
     # Load the dataset.
     dataset = []
-    with open(dataset_path) as f:
-        for line in f:
-            dataset.append(json.loads(line.strip()))
+    with open(dataset_path, encoding='utf-8') as f:
+        dataset = json.load(f)
     # print(dataset[0])
-    dataset = [
-        (data["question"])
-        for data in dataset
-    ]
+    dataset = [data for data in dataset if len(data["question"]) >= 1]
+    dataset = [(data["question"]) for data in dataset]
+    print(num_requests)
     
     # dataset = dataset * num_requests
     # Tokenize the prompts and completions.
@@ -59,7 +57,7 @@ def sample_requests(
     #     tokenized_dataset.append(prompts[i])
 
     # Sample the requests.
-    sampled_requests = random.sample(dataset, num_requests)
+    sampled_requests = dataset[:100]
     for d in sampled_requests:
         print(len(d))
     return sampled_requests
@@ -103,8 +101,7 @@ async def send_request(backend: str, model: str, api_url: str, prompt: str,
                 "frequency_penalty": 0.0,
                 "temperature": 0.0,
                 "top_p": 1.0,
-                "top_k": -1,
-                "use_beam_search": use_beam_search
+                "top_k": -1
             },
             "maxContentRound": 20,
             "maxLength": 8192
@@ -138,6 +135,7 @@ async def benchmark(
     pbar = tqdm(total=len(input_requests))
     async for request in get_request(input_requests, request_rate):
         prompt = request
+        print("-------------",len(prompt))
         task = asyncio.create_task(
             send_request(backend, model, api_url, prompt,
                          best_of, use_beam_search, pbar))
@@ -212,8 +210,8 @@ if __name__ == "__main__":
                         type=str,
                         default="http",
                         choices=["http", "https"])
-    parser.add_argument("--host", type=str, default="10.107.254.250")
-    parser.add_argument("--port", type=int, default=31023)
+    parser.add_argument("--host", type=str, default="10.200.48.45")
+    parser.add_argument("--port", type=int, default=18196)
     parser.add_argument("--endpoint", type=str, default="/llm/generate")
     parser.add_argument("--model", type=str, default=None)
     parser.add_argument("--dataset",
@@ -228,7 +226,7 @@ if __name__ == "__main__":
     parser.add_argument("--use-beam-search", action="store_true")
     parser.add_argument("--num-prompts",
                         type=int,
-                        default=1000,
+                        default=10,
                         help="Number of prompts to process.")
     parser.add_argument("--request-rate",
                         type=float,

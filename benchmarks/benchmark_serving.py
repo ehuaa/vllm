@@ -93,14 +93,13 @@ def sample_sharegpt_requests(
     with open(dataset_path, encoding='utf-8') as f:
         dataset = json.load(f)
     # Filter out the conversations with less than 2 turns.
-    dataset = [data for data in dataset if len(data["conversations"]) >= 2]
+    dataset = [data for data in dataset if len(data["question"]) >= 1]
     # Only keep the first two turns of each conversation.
-    dataset = [(data["conversations"][0]["value"],
-                data["conversations"][1]["value"]) for data in dataset]
+    dataset = [(data["question"]) for data in dataset]
 
     # Shuffle the dataset.
     random.shuffle(dataset)
-
+    print(dataset[0])
     # Filter out sequences that are too long or too short
     filtered_dataset: List[Tuple[str, int, int]] = []
     for i in range(len(dataset)):

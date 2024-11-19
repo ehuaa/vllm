@@ -515,6 +515,11 @@ async def llm_generate(request: Request) -> Response:
            "data": {"output": text_outputs[0]}}
     return JSONResponse(ret)
 
+@router.get("/ready")
+async def ready(raw_request: Request) -> Response:
+    """Health check."""
+    await engine_client(raw_request).check_health()
+    return Response(status_code=200)
 
 @router.get("/health")
 async def health(raw_request: Request) -> Response:
