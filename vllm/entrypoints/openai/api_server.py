@@ -453,6 +453,8 @@ async def llm_generate(request: Request) -> Response:
     max_content_round = request_dict.pop("maxContentRound", 20)
     max_length = request_dict.pop("maxLength", 8192)
     sampling_params = request_dict.pop("params")
+    del_key1 = sampling_params.pop("length_penalty")
+    del_key2 = sampling_params.pop("use_beam_search")
     request_id = request_dict.pop("requestId", random_uuid())
     stop_words = request_dict.pop("stopWords", [])
 
@@ -482,7 +484,7 @@ async def llm_generate(request: Request) -> Response:
         sampling_params["best_of"] = None
      
     sampling_params = SamplingParams(**sampling_params)
-    results_generator = engine_client.generate({"prompt_token_ids": prompt_ids}, sampling_params, request_id)
+    results_generator = engine_client_i.generate({"prompt_token_ids": prompt_ids}, sampling_params, request_id)
 
     # Streaming case
     async def stream_results() -> AsyncGenerator[bytes, None]:
@@ -502,7 +504,7 @@ async def llm_generate(request: Request) -> Response:
     async for request_output in results_generator:
         if await request.is_disconnected():
             # Abort the request if the client disconnects.
-            await engine_client.abort(request_id)
+            await engine_client_i.abort(request_id)
             return Response(status_code=499)
         final_output = request_output
 
@@ -813,12 +815,12 @@ async def run_server(args, **uvicorn_kwargs) -> None:
 
     signal.signal(signal.SIGTERM, signal_handler)
 
-    global engine_client
-    async with build_async_engine_client(args) as engine_client:
+    global engine_client_i
+    async with build_async_engine_client(args) as engine_client_i:
         app = build_app(args)
 
-        model_config = await engine_client.get_model_config()
-        init_app_state(engine_client, model_config, app.state, args)
+        model_config = await engine_client_i.get_model_config()
+        init_app_state(engine_client_i, model_config, app.state, args)
 
         shutdown_task = await serve_http(
             app,

@@ -210,7 +210,7 @@ if __name__ == "__main__":
                         type=str,
                         default="http",
                         choices=["http", "https"])
-    parser.add_argument("--host", type=str, default="10.200.48.45")
+    parser.add_argument("--host", type=str, default="0.0.0.0")
     parser.add_argument("--port", type=int, default=18196)
     parser.add_argument("--endpoint", type=str, default="/llm/generate")
     parser.add_argument("--model", type=str, default=None)
