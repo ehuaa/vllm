@@ -294,6 +294,7 @@ class ChatCompletionRequest(OpenAIBaseModel):
             "The request_id related to this request. If the caller does "
             "not set it, a random_uuid will be generated. This id is used "
             "through out the inference process and return in response."))
+    llm_generate: Optional[bool] = False
 
     # doc: end-chat-completion-extra-params
 
@@ -345,6 +346,14 @@ class ChatCompletionRequest(OpenAIBaseModel):
             backend=self.guided_decoding_backend,
             whitespace_pattern=self.guided_whitespace_pattern)
 
+        if self.stream:
+            if self.llm_generate:
+                output_kind_option = RequestOutputKind.CUMULATIVE  
+            else:
+                output_kind_option = RequestOutputKind.DELTA
+        else:
+            output_kind_option = RequestOutputKind.FINAL_ONLY
+            
         return SamplingParams.from_optional(
             n=self.n,
             best_of=self.best_of,
@@ -367,8 +376,7 @@ class ChatCompletionRequest(OpenAIBaseModel):
             spaces_between_special_tokens=self.spaces_between_special_tokens,
             include_stop_str_in_output=self.include_stop_str_in_output,
             truncate_prompt_tokens=self.truncate_prompt_tokens,
-            output_kind=RequestOutputKind.DELTA if self.stream \
-                else RequestOutputKind.FINAL_ONLY,
+            output_kind=output_kind_option,
             guided_decoding=guided_decoding,
             logit_bias=self.logit_bias)
 
@@ -1010,7 +1018,7 @@ class ChatCompletionStreamResponse(OpenAIBaseModel):
     model: str
     choices: List[ChatCompletionResponseStreamChoice]
     usage: Optional[UsageInfo] = Field(default=None)
-
+    output: Optional[str] = None
 
 class BatchRequestInput(OpenAIBaseModel):
     """

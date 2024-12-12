@@ -379,22 +379,21 @@ async def llm_generate(raw_request: Request) -> Response:
     
     # get data from request_dict and construct ChatCompletionRequest
     sampling_params = request_dict.pop("params")
+    requestId = request_dict.pop("requestId", random_uuid())
     request = ChatCompletionRequest(
         model=args.model,
-        messages=[{
-            "role": "user",
-            "content": "what is 1+1?"
-        }],
+        messages=messages,
         stream=request_dict.pop("stream", False),
-        max_length=request_dict.pop("maxLength", 8192),
-        requestId=request_dict.pop("requestId", random_uuid()),
+        max_completion_tokens=request_dict.pop("maxLength", 8192),
+        requestId=requestId,
         logprobs=False,
         frequency_penalty=sampling_params["frequency_penalty"],
         temperature=sampling_params["temperature"],
         presence_penalty=sampling_params["presence_penalty"],
         top_p=sampling_params["top_p"],
         top_k=sampling_params["top_k"],
-        repetition_penalty=sampling_params["repetition_penalty"]
+        repetition_penalty=sampling_params["repetition_penalty"],
+        llm_generate=True
     )
     
     handler = chat(raw_request)
@@ -410,7 +409,14 @@ async def llm_generate(raw_request: Request) -> Response:
                             status_code=generator.code)
 
     elif isinstance(generator, ChatCompletionResponse):
-        return JSONResponse(content=generator.model_dump())
+        non_streaming_response = generator.model_dump()
+        non_streaming_response.update({"output": non_streaming_response.get("choices", [{}])[0].get("message", {}).get("content", "")})
+        return JSONResponse(content={
+            "requestId":requestId,
+            "code":"200" ,
+            "message":"success",
+            "data": non_streaming_response
+        })
 
     return StreamingResponse(content=generator, media_type="text/event-stream")
 

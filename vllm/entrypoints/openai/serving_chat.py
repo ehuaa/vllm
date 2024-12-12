@@ -106,6 +106,7 @@ class OpenAIServingChat(OpenAIServing):
         for the API specification. This API mimics the OpenAI
         Chat Completion API.
         """
+        logger.info(f"Request {request.requestId} arrived time is {time.perf_counter()}")
         error_check_ret = await self._check_model(request)
         if error_check_ret is not None:
             logger.error("Error with model %s", error_check_ret)
@@ -357,9 +358,16 @@ class OpenAIServingChat(OpenAIServing):
                                 completion_tokens=0,
                                 total_tokens=num_prompt_tokens)
 
-                        data = chunk.model_dump_json(exclude_unset=True)
-                        yield f"data: {data}\n\n"
-
+                        if request.llm_generate:
+                            chunk.output = ""
+                            data = chunk.model_dump_json(exclude_unset=True)
+                            yield f"{data}\0"
+                        else:    
+                            data = chunk.model_dump_json(exclude_unset=True)
+                            yield f"data: {data}\n\n"
+                    
+                    # record time of first token for streaming reponse
+                    logger.info(f"Request {request.requestId} first token time is {time.perf_counter()}")
                     # Send response to echo the input portion of the
                     # last message
                     if request.echo:
@@ -546,8 +554,13 @@ class OpenAIServingChat(OpenAIServing):
                             total_tokens=num_prompt_tokens + completion_tokens,
                         )
 
-                    data = chunk.model_dump_json(exclude_unset=True)
-                    yield f"data: {data}\n\n"
+                    if request.llm_generate:
+                        chunk.output = delta_text
+                        data = chunk.model_dump_json(exclude_unset=True)
+                        yield f"{data}\0"
+                    else:    
+                        data = chunk.model_dump_json(exclude_unset=True)
+                        yield f"data: {data}\n\n"
 
             # once the final token is handled, if stream_options.include_usage
             # is sent, send the usage
@@ -584,8 +597,11 @@ class OpenAIServingChat(OpenAIServing):
             logger.exception("Error in chat completion stream generator.")
             data = self.create_streaming_error_response(str(e))
             yield f"data: {data}\n\n"
-        # Send the final done message after all response.n are finished
-        yield "data: [DONE]\n\n"
+        
+        if not request.llm_generate:
+            # Send the final done message after all response.n are finished
+            yield "data: [DONE]\n\n"
+        logger.info(f"Request {request.requestId} end time is {time.perf_counter()}")
 
     async def chat_completion_full_generator(
         self,
@@ -745,7 +761,7 @@ class OpenAIServingChat(OpenAIServing):
             usage=usage,
             prompt_logprobs=final_res.prompt_logprobs,
         )
-
+        logger.info(f"Request {request.requestId} end time is {time.perf_counter()}")
         return response
 
     def _get_top_logprobs(

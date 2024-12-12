@@ -24,6 +24,11 @@ from vllm.utils import merge_async_iterators, random_uuid
 logger = init_logger(__name__)
 
 
+def get_detailed_instruct(task_description: str, query: str) -> str:
+    return f'Instruct: {task_description}\nQuery: {query}'
+task = 'Given a web search query, retrieve relevant passages that answer the query'
+sfr_max_length = 4096
+
 def _get_embedding(
     output: PoolingOutput,
     encoding_format: Literal["float", "base64"],
@@ -132,6 +137,16 @@ class OpenAIServingEmbedding(OpenAIServing):
 
             tokenizer = await self.engine_client.get_tokenizer(lora_request)
 
+            # process request input for SFR-Mistral-Embedding model
+            if model_name.endswith('SFR-Embedding-Mistral'):
+                truncate_prompt_tokens = sfr_max_length - 1
+                tokenizer.add_eos_token=True
+                # convert embedding to get_detailed_instruct
+                if isinstance(request.input, list):
+                    request.input = [get_detailed_instruct(task, it) for it in request.input]
+                else:
+                    request.input = get_detailed_instruct(task, request.input)                
+            
             if prompt_adapter_request is not None:
                 raise NotImplementedError("Prompt adapter is not supported "
                                           "for embedding models")
