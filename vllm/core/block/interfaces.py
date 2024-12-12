@@ -160,12 +160,6 @@ class BlockAllocator(ABC):
         pass
 
     @abstractmethod
-    def get_computed_block_ids(self, prev_computed_block_ids: List[int],
-                               block_ids: List[int],
-                               skip_last_block_id: bool) -> List[int]:
-        pass
-
-    @abstractmethod
     def get_common_computed_block_ids(
             self, computed_seq_block_ids: List[List[int]]) -> List[int]:
         pass
@@ -181,12 +175,22 @@ class BlockAllocator(ABC):
         pass
 
     @abstractmethod
-    def get_num_blocks_touched(self,
-                               blocks: List[Block],
-                               num_lookahead_slots: int = 0) -> int:
+    def get_num_full_blocks_touched(self, blocks: List[Block]) -> int:
+        pass
+
+    @abstractmethod
+    def get_prefix_cache_hit_rate(self) -> float:
+        """Prefix cache hit rate. -1 means not supported or disabled."""
         pass
 
     class NoFreeBlocksError(ValueError):
+        pass
+
+    @abstractmethod
+    def find_cached_blocks_prefix(
+        self,
+        block_hashes: List[int],
+    ) -> List[int]:
         pass
 
 
@@ -204,9 +208,12 @@ class DeviceAwareBlockAllocator(ABC):
         pass
 
     @abstractmethod
-    def allocate_immutable_blocks(self, prev_block: Optional[Block],
-                                  block_token_ids: List[List[int]],
-                                  device: Device) -> List[Block]:
+    def allocate_immutable_blocks(
+        self,
+        prev_block: Optional[Block],
+        block_token_ids: List[List[int]],
+        device: Device,
+    ) -> List[Block]:
         pass
 
     @abstractmethod
@@ -244,21 +251,13 @@ class DeviceAwareBlockAllocator(ABC):
         pass
 
     @abstractmethod
-    def get_computed_block_ids(self, prev_computed_block_ids: List[int],
-                               block_ids: List[int],
-                               skip_last_block_id: bool) -> List[int]:
-        pass
-
-    @abstractmethod
     def get_common_computed_block_ids(
             self, computed_seq_block_ids: List[List[int]]) -> List[int]:
         pass
 
     @abstractmethod
-    def get_num_blocks_touched(self,
-                               blocks: List[Block],
-                               device: Device,
-                               num_lookahead_slots: int = 0) -> int:
+    def get_num_full_blocks_touched(self, blocks: List[Block],
+                                    device: Device) -> int:
         pass
 
     @abstractmethod
@@ -277,4 +276,17 @@ class DeviceAwareBlockAllocator(ABC):
         been dropped due to sliding window.
         There is at most one null block per allocator.
         """
+        pass
+
+    @abstractmethod
+    def get_prefix_cache_hit_rate(self, device: Device) -> float:
+        """Prefix cache hit rate. -1 means not supported or disabled."""
+        pass
+
+    @abstractmethod
+    def find_cached_blocks_prefix(
+        self,
+        block_hashes: List[int],
+        device: Device = Device.GPU,
+    ) -> List[int]:
         pass

@@ -40,7 +40,6 @@ client = AsyncOpenAI(
 )
 
 
-
 async def get_request(
     input_requests: List[str],
     request_rate: float,
@@ -63,7 +62,6 @@ async def send_request(prompt) -> None:
     embeddings = await client.embeddings.create(
         model=models.data[0].id,
         input=prompt,
-        encoding_format="float",
     )
     for data in embeddings.data:
         print(data.embedding[:10])

@@ -1,14 +1,18 @@
 # imports for guided decoding tests
 import json
 import re
-from typing import List
+import shutil
+from tempfile import TemporaryDirectory
+from typing import Dict, List, Optional
 
 import jsonschema
 import openai  # use the official client for correctness check
 import pytest
+import pytest_asyncio
 # downloading lora to test lora requests
 from huggingface_hub import snapshot_download
 from openai import BadRequestError
+from transformers import AutoTokenizer
 
 from vllm.transformers_utils.tokenizer import get_tokenizer
 
@@ -31,48 +35,72 @@ def zephyr_lora_files():
 
 
 @pytest.fixture(scope="module")
+def zephyr_lora_added_tokens_files(zephyr_lora_files):
+    tmp_dir = TemporaryDirectory()
+    tmp_model_dir = f"{tmp_dir.name}/zephyr"
+    shutil.copytree(zephyr_lora_files, tmp_model_dir)
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    # Copy tokenizer to adapter and add some unique tokens
+    # 32000, 32001, 32002
+    added = tokenizer.add_tokens(["vllm1", "vllm2", "vllm3"],
+                                 special_tokens=True)
+    assert added == 3
+    tokenizer.save_pretrained(tmp_model_dir)
+    yield tmp_model_dir
+    tmp_dir.cleanup()
+
+
+@pytest.fixture(scope="module")
 def zephyr_pa_files():
     return snapshot_download(repo_id=PA_NAME)
 
 
 @pytest.fixture(scope="module")
-def server(zephyr_lora_files, zephyr_pa_files):
-    with RemoteOpenAIServer([
-            "--model",
-            MODEL_NAME,
-            # use half precision for speed and memory savings in CI environment
-            "--dtype",
-            "bfloat16",
-            "--max-model-len",
-            "8192",
-            "--max-num-seqs",
-            "128",
-            "--enforce-eager",
-            # lora config
-            "--enable-lora",
-            "--lora-modules",
-            f"zephyr-lora={zephyr_lora_files}",
-            f"zephyr-lora2={zephyr_lora_files}",
-            "--max-lora-rank",
-            "64",
-            "--max-cpu-loras",
-            "2",
-            # pa config
-            "--enable-prompt-adapter",
-            "--prompt-adapters",
-            f"zephyr-pa={zephyr_pa_files}",
-            f"zephyr-pa2={zephyr_pa_files}",
-            "--max-prompt-adapters",
-            "2",
-            "--max-prompt-adapter-token",
-            "128",
-    ]) as remote_server:
+def default_server_args(zephyr_lora_files, zephyr_lora_added_tokens_files,
+                        zephyr_pa_files):
+    return [
+        # use half precision for speed and memory savings in CI environment
+        "--dtype",
+        "bfloat16",
+        "--max-model-len",
+        "8192",
+        "--max-num-seqs",
+        "128",
+        "--enforce-eager",
+        # lora config
+        "--enable-lora",
+        "--lora-modules",
+        f"zephyr-lora={zephyr_lora_files}",
+        f"zephyr-lora2={zephyr_lora_added_tokens_files}",
+        "--max-lora-rank",
+        "64",
+        "--max-cpu-loras",
+        "2",
+        # pa config
+        "--enable-prompt-adapter",
+        "--prompt-adapters",
+        f"zephyr-pa={zephyr_pa_files}",
+        f"zephyr-pa2={zephyr_pa_files}",
+        "--max-prompt-adapters",
+        "2",
+        "--max-prompt-adapter-token",
+        "128",
+    ]
+
+
+@pytest.fixture(scope="module",
+                params=["", "--disable-frontend-multiprocessing"])
+def server(default_server_args, request):
+    if request.param:
+        default_server_args.append(request.param)
+    with RemoteOpenAIServer(MODEL_NAME, default_server_args) as remote_server:
         yield remote_server
 
 
-@pytest.fixture(scope="module")
-def client(server):
-    return server.get_async_client()
+@pytest_asyncio.fixture
+async def client(server):
+    async with server.get_async_client() as async_client:
+        yield async_client
 
 
 @pytest.mark.asyncio
@@ -109,6 +137,35 @@ async def test_single_completion(client: openai.AsyncOpenAI, model_name: str,
         temperature=0.0,
     )
     assert len(completion.choices[0].text) >= 1
+    assert completion.choices[0].prompt_logprobs is None
+
+
+@pytest.mark.asyncio
+async def test_added_lora_tokens(client: openai.AsyncOpenAI):
+    # test using token IDs
+    completion = await client.completions.create(
+        model="zephyr-lora2",
+        prompt=[0, 0, 32000, 32001, 32002],
+        echo=True,
+        max_tokens=5,
+        temperature=0.0,
+    )
+    # Added tokens should appear in tokenized prompt
+    assert completion.choices[0].text.startswith("<unk><unk>vllm1vllm2vllm3")
+
+
+@pytest.mark.asyncio
+async def test_added_lora_tokens_base_model(client: openai.AsyncOpenAI):
+    # test using token IDs
+    with pytest.raises(openai.BadRequestError, match="out of vocabulary"):
+        # Added tokens should be rejected by the base model
+        await client.completions.create(
+            model=MODEL_NAME,
+            prompt=[0, 0, 32000, 32001, 32002],
+            echo=True,
+            max_tokens=5,
+            temperature=0.0,
+        )
 
 
 @pytest.mark.asyncio
@@ -219,6 +276,37 @@ async def test_too_many_completion_logprobs(client: openai.AsyncOpenAI,
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("model_name, prompt_logprobs", [(MODEL_NAME, -1),
+                                                         (MODEL_NAME, 0),
+                                                         (MODEL_NAME, 1),
+                                                         (MODEL_NAME, None)])
+async def test_prompt_logprobs_completion(client: openai.AsyncOpenAI,
+                                          model_name: str,
+                                          prompt_logprobs: Optional[int]):
+    params: Dict = {
+        "prompt": ["A robot may not injure another robot", "My name is"],
+        "model": model_name,
+    }
+    if prompt_logprobs is not None:
+        params["extra_body"] = {"prompt_logprobs": prompt_logprobs}
+
+    if prompt_logprobs is not None and prompt_logprobs < 0:
+        with pytest.raises(BadRequestError):
+            await client.completions.create(**params)
+    else:
+        completion = await client.completions.create(**params)
+        if prompt_logprobs is not None:
+            assert completion.choices[0].prompt_logprobs is not None
+            assert len(completion.choices[0].prompt_logprobs) > 0
+
+            assert completion.choices[1].prompt_logprobs is not None
+            assert len(completion.choices[1].prompt_logprobs) > 0
+
+        else:
+            assert completion.choices[0].prompt_logprobs is None
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "model_name",
     [MODEL_NAME, "zephyr-lora", "zephyr-pa"],
@@ -250,6 +338,40 @@ async def test_completion_streaming(client: openai.AsyncOpenAI,
     assert chunk.choices[0].finish_reason == "length"
     assert chunk.choices[0].text
     assert "".join(chunks) == single_output
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "model_name",
+    [MODEL_NAME, "zephyr-lora", "zephyr-pa"],
+)
+async def test_parallel_streaming(client: openai.AsyncOpenAI, model_name: str):
+    """Streaming for parallel sampling.
+    The tokens from multiple samples, are flattened into a single stream,
+    with an index to indicate which sample the token belongs to.
+    """
+
+    prompt = "What is an LLM?"
+    n = 3
+    max_tokens = 5
+
+    stream = await client.completions.create(model=model_name,
+                                             prompt=prompt,
+                                             max_tokens=max_tokens,
+                                             n=n,
+                                             stream=True)
+    chunks: List[List[str]] = [[] for i in range(n)]
+    finish_reason_count = 0
+    async for chunk in stream:
+        index = chunk.choices[0].index
+        text = chunk.choices[0].text
+        chunks[index].append(text)
+        if chunk.choices[0].finish_reason is not None:
+            finish_reason_count += 1
+    assert finish_reason_count == n
+    for chunk in chunks:
+        assert len(chunk) == max_tokens
+        print("".join(chunk))
 
 
 @pytest.mark.asyncio
@@ -415,8 +537,8 @@ async def test_batch_completions(client: openai.AsyncOpenAI, model_name: str):
             max_tokens=5,
             temperature=0.0,
             extra_body=dict(
-                # NOTE: this has to be true for n > 1 in vLLM, but not necessary
-                # for official client.
+                # NOTE: this has to be true for n > 1 in vLLM, but
+                # not necessary for official client.
                 use_beam_search=True),
         )
         assert len(batch.choices) == 4
@@ -488,6 +610,28 @@ async def test_logits_bias(client: openai.AsyncOpenAI):
                     for token in response_tokens},
     )
     assert first_response != completion.choices[0].text
+
+
+@pytest.mark.asyncio
+async def test_allowed_token_ids(client: openai.AsyncOpenAI):
+    prompt = "Hello, my name is"
+    max_tokens = 1
+    tokenizer = get_tokenizer(tokenizer_name=MODEL_NAME)
+
+    # Test exclusive selection
+    allowed_ids = [21555, 21557, 21558]
+    completion = await client.completions.create(
+        model=MODEL_NAME,
+        prompt=prompt,
+        max_tokens=max_tokens,
+        temperature=0.0,
+        seed=42,
+        extra_body=dict(allowed_token_ids=allowed_ids),
+        logprobs=1,
+    )
+    response_tokens = completion.choices[0].logprobs.tokens
+    assert len(response_tokens) == 1
+    assert tokenizer.convert_tokens_to_ids(response_tokens)[0] in allowed_ids
 
 
 @pytest.mark.asyncio

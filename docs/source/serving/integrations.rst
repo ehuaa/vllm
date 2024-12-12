@@ -12,3 +12,5 @@ Integrations
    deploying_with_lws
    deploying_with_dstack
    serving_with_langchain
+   serving_with_llamaindex
+   serving_with_llamastack
