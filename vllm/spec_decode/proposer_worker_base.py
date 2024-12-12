@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional, Set, Tuple
 
-from vllm.sequence import ExecuteModelRequest, SamplerOutput
+from vllm.model_executor.layers.sampler import SamplerOutput
+from vllm.sequence import ExecuteModelRequest
 from vllm.spec_decode.interfaces import SpeculativeProposer
 from vllm.worker.worker_base import LoraNotSupportedWorkerBase
 
@@ -24,7 +25,11 @@ class ProposerWorkerBase(LoraNotSupportedWorkerBase, SpeculativeProposer):
     ) -> Tuple[Optional[List[SamplerOutput]], bool]:
         raise NotImplementedError
 
-    def set_include_gpu_probs_tensor(self):
+    def set_include_gpu_probs_tensor(self) -> None:
+        """Implementation optional"""
+        pass
+
+    def set_should_modify_greedy_probs_inplace(self) -> None:
         """Implementation optional"""
         pass
 
