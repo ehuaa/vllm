@@ -387,12 +387,12 @@ async def llm_generate(raw_request: Request) -> Response:
         max_completion_tokens=request_dict.pop("maxLength", 8192),
         requestId=requestId,
         logprobs=False,
-        frequency_penalty=sampling_params["frequency_penalty"],
-        temperature=sampling_params["temperature"],
-        presence_penalty=sampling_params["presence_penalty"],
-        top_p=sampling_params["top_p"],
-        top_k=sampling_params["top_k"],
-        repetition_penalty=sampling_params["repetition_penalty"],
+        frequency_penalty=sampling_params.get("frequency_penalty", 0.0),
+        temperature=sampling_params.get("temperature", 0.6),
+        presence_penalty=sampling_params.get("presence_penalty", 2.0),
+        top_p=sampling_params.get("top_p", 0.8),
+        top_k=sampling_params.get("top_k", -1),
+        repetition_penalty=sampling_params.get("repetition_penalty", 1.0),
         llm_generate=True
     )
     
@@ -410,7 +410,15 @@ async def llm_generate(raw_request: Request) -> Response:
 
     elif isinstance(generator, ChatCompletionResponse):
         non_streaming_response = generator.model_dump()
-        non_streaming_response.update({"output": non_streaming_response.get("choices", [{}])[0].get("message", {}).get("content", "")})
+        non_streaming_response.update({
+            "input": prompt,
+            "config": sampling_params,
+            "output": non_streaming_response.get("choices", [{}])[0].get("message", {}).get("content", ""),
+            "inputTokens":non_streaming_response.get("usage", {}).get("prompt_tokens", 0),
+            "outputTokens":non_streaming_response.get("usage", {}).get("completion_tokens", 0), 
+            "finishReason": non_streaming_response.get("choices", [{}])[0].get("finish_reason", "")       # update choices value to the first item to cope with tqms
+        })
+        non_streaming_response.pop("choices", "")
         return JSONResponse(content={
             "requestId":requestId,
             "code":"200" ,

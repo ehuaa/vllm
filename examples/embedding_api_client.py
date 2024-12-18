@@ -56,7 +56,7 @@ if __name__ == "__main__":
     stream = args.stream
 
     data = []
-    with open('/nas/czh/part_1.tsv', 'r', encoding='utf-8') as file:
+    with open('/root/vllm_test/czh/vllm/part_1.tsv', 'r', encoding='utf-8') as file:
         for line in file:
             row = line.strip().split('|')[1].strip()
             data.append(row)
@@ -71,5 +71,5 @@ if __name__ == "__main__":
     output = get_response(response)
     print(time.perf_counter() - t0)
     print(len(output))
-    # print(output[9][:10])
+    print(output[9][:10])
    
