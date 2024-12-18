@@ -48,7 +48,6 @@ async def create_embeddings(request: Request) -> Response:
     """
     request_dict = await request.json()
     prompts = request_dict.pop("prompts")
-    
     prompts = [get_detailed_instruct(task, it) for it in prompts]
     llm_engine_prompt_encode_id_dict = [{"prompt_token_ids": tokenizer(prompt, max_length=max_length - 1, padding=True, truncation=True, return_tensors="pt")["input_ids"][0]} for prompt in prompts]
     outputs = model.encode(llm_engine_prompt_encode_id_dict)
@@ -85,10 +84,12 @@ if __name__ == "__main__":
     parser.add_argument("--log-level", type=str, default="info")
     
     args = parser.parse_args()
-    model = LLM(model=args.model, enforce_eager=True, disable_sliding_window=True)
+    model = LLM(model=args.model, disable_sliding_window=True)
 
     tokenizer = AutoTokenizer.from_pretrained(args.model)
-    tokenizer.add_eos_token = True
+    
+    # add_eos_token is set to true in tokenizer_config.json
+    # tokenizer.add_eos_token = True
 
     app.root_path = args.root_path
 

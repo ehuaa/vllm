@@ -1,0 +1,1073 @@
+[
+    {
+        "question": "What are main causes of earthquakes?"
+    },
+    {
+        "question": "How many types of dinosaur are there?"
+    },
+    {
+        "question": "How to govern mines?"
+    },
+    {
+        "question": "What is the definition and the chronostratigraphic time chart of the Precambiran?"
+    },
+    {
+        "question": "How does modal metasomatism differ from cryptic metasomatism?"
+    },
+    {
+        "question": "What is the Ediacaran biota?"
+    },
+    {
+        "question": "How Does In Situ Stress Rotate Within a Fault Zone?"
+    },
+    {
+        "question": "What are the factors that affect the amplitude of seismic reflection wave ? "
+    },
+    {
+        "question": "Multiple reflection wave generation conditions and identification methods. "
+    },
+    {
+        "question": "What are the characteristics of the section wave ? "
+    },
+    {
+        "question": "Compared with the reflected wave, the main difference of the refracted wave is ? "
+    },
+    {
+        "question": "The formation mechanism and propagation characteristics of Rayleigh surface wave are briefly described. From the perspective of seismic exploration, as an interference wave, how to suppress it ? "
+    },
+    {
+        "question": "Major factors affecting the vertical resolution of seismic data. "
+    },
+    {
+        "question": "What is the difference between the effective wave and the disturbing wave ? "
+    },
+    {
+        "question": "Causes of Gibbs phenomenon and how to overcome it. "
+    },
+    {
+        "question": "Discuss how to separate the log spectrum of seismic reflection wave and reflection coefficient by homomorphic deconvolution ? "
+    },
+    {
+        "question": "Discuss the main process of seismic data processing and its main role. "
+    },
+    {
+        "question": "The purpose of gravity and magnetic anomaly processing and conversion."
+    },
+    {
+        "question": "The characteristics of deconvolution problem."
+    },
+    {
+        "question": "Differences among three post-stack wave equation migration methods ? "
+    },
+    {
+        "question": "Comparison of four methods of prestack depth migration ? "
+    },
+    {
+        "question": "The principle and function of analytical continuation in gravity and magnetic anomaly processing and conversion."
+    },
+    {
+        "question": "What is an underwater sound channel?"
+    },
+    {
+        "question": "What are the basic water masses present in the world's oceans? Please provide their respective characteristics."
+    },
+    {
+        "question": "What are the characteristics of the horizontal distribution of surface temperatures in the world's oceans? "
+    },
+    {
+        "question": "What are the characteristics of the horizontal distribution of surface salinity in the world's oceans?"
+    },
+    {
+        "question": "Briefly describe the conditions and process of sea ice formation."
+    },
+    {
+        "question": "What is marine primary productivity? What factors influence marine primary productivity?"
+    },
+    {
+        "question": "What two factors primarily influence the distribution of surface water temperature in the global ocean? What is the general characteristic of its horizontal distribution?"
+    },
+    {
+        "question": "What two factors primarily influence the salinity of the global ocean surface? What is the general distribution characteristic?"
+    },
+    {
+        "question": "From the perspective of the physical properties of seawater and sea ice, explain simply why the warming rate in the Arctic region is significantly faster than the global average warming rate in the context of global climate change?"
+    },
+    {
+        "question": "Please briefly analyze how the salt finger phenomenon is produced through the double diffusion effect when warm and salty seawater is located above cold and fresh seawater."
+    },
+    {
+        "question": "Why does the Atlantic Ocean, despite having many rivers flowing into it, have a higher salinity than the Pacific Ocean?"
+    },
+    {
+        "question": "In low-latitude marine areas, the vertical distribution of temperature, salinity, and density to some extent reflects the longitudinal distribution characteristics of the ocean surface. Why is this? Please answer by combining the sources and characteristics of seawater at different levels in the vertical direction."
+    },
+    {
+        "question": "What is ocean remote sensing? What are the advantages of ocean remote sensing observation technology compared with traditional ocean observation methods"
+    },
+    {
+        "question": "What is the difference between the main thermocline in the ocean and the seasonal thermocline?"
+    },
+    {
+        "question": "Evaluate the contributions and drawbacks of the tidal static theory. "
+    },
+    {
+        "question": "Oceanography is an observation-based discipline. What are the means of ocean observation? Please discuss the advantages and disadvantages of each method. "
+    },
+    {
+        "question": "What is the importance of internal waves in the ocean?"
+    },
+    {
+        "question": "Please briefly explain the reasons for the formation of underwater sound channels."
+    },
+    {
+        "question": "Please explain the mechanism by which the wave crest lines gradually become parallel to the coastline as waves propagate to the nearshore."
+    },
+    {
+        "question": "Discuss the significant differences and characteristics of the eastern and western boundary currents in the global subtropical oceanic gyre. "
+    },
+    {
+        "question": "Why is it generally harder for seawater to freeze than pure water"
+    },
+    {
+        "question": "How does the increase in salinity affect the maximum density temperature and freezing point of seawater, and what impact does it have on the freezing of seawater?"
+    },
+    {
+        "question": "Briefly describe what roles the ocean plays in the climate system?"
+    },
+    {
+        "question": "What is ENSO? What effects does it have on atmospheric circulation?"
+    },
+    {
+        "question": "Briefly describe the main features of the surface circulation of the world's oceans."
+    },
+    {
+        "question": "Briefly describe the differences in the formation, characteristics, and propagation process of wind waves and swell?"
+    },
+    {
+        "question": "On the whole, the Earth gains heat in the tropics and loses heat at the poles. Why don't the tropics get hotter and the poles get colder over time? "
+    },
+    {
+        "question": "Please provide examples to illustrate the content of Bjerknes' positive and negative feedback mechanisms. "
+    },
+    {
+        "question": "What are the impacts of the El Ni?o event on China's climate?"
+    },
+    {
+        "question": "Where in the ocean are marine fisheries likely to form? What is the reason?"
+    },
+    {
+        "question": "Why is the ocean referred to as the air conditioner of the atmosphere and the buffer of climate change?"
+    },
+    {
+        "question": "What are the generation conditions and excitation sources of oceanic internal waves? What are the observation methods for oceanic internal waves?"
+    },
+    {
+        "question": "Why does the tidal static theory approximation explain the ocean tidal range quite well? But why is there a significant difference from the actual nearshore tidal range?"
+    },
+    {
+        "question": "Satellite remote sensing observation is one of the important means of marine observation. Please briefly describe the advantages of satellite remote sensing observation."
+    },
+    {
+        "question": "Explain briefly what the Atlantic Meridional Overturning Circulation (AMOC) is and briefly explain the role of AMOC in climate."
+    },
+    {
+        "question": "What is a positive pressure fluid and what is an oblique pressure fluid?"
+    },
+    {
+        "question": "Talk about your understanding of the connections and differences between the ocean wind-driven circulation and the thermohaline circulation, answering from the perspectives of driving forces, space of motion, and time scales."
+    },
+    {
+        "question": "Talk about why fluctuating processes such as Rossby waves and Kelvin waves play an important role in large-scale ocean processes."
+    },
+    {
+        "question": "Briefly describe the importance of Deep Ocean Circulation"
+    },
+    {
+        "question": "Briefly describe how the theory of Ekman's layer motion was created, explaining which terms are balanced as a consequence of Ekman's layer motion."
+    },
+    {
+        "question": "What is the expression for the Coriolis parameter f? What is the \\beta parameter? What is the f-plane approximation and what is the \\beta-plane approximation, and for what research situations are the f-plane and \\beta-plane approximations appropriate, respectively?"
+    },
+    {
+        "question": "The direct effect of wind on the ocean is only in the Ekman layer, how is the depth of the Ekman layer defined?Is the Ekman current geostrophic? Why?"
+    },
+    {
+        "question": "What is conservation of the potential vortex? What are the conditions for its application?"
+    },
+    {
+        "question": "Important stages in the development of remote sensing of the oceans, their signatures."
+    },
+    {
+        "question": "Describe the characteristics of ocean remote sensing data, different from conventional observations:"
+    },
+    {
+        "question": "List active sensors, passive sensors:"
+    },
+    {
+        "question": "From the perspective of off-water irradiance, what is the difficulty in analyzing the atmospheric correction of offshore turbid waters?"
+    },
+    {
+        "question": "Briefly explain the reasons why land satellites and meteorological satellites cannot completely replace ocean satellites."
+    },
+    {
+        "question": "Compare the advantages and disadvantages of microwave and thermal infrared band SST measurements."
+    },
+    {
+        "question": "Briefly describe the characteristics of ocean remote sensing."
+    },
+    {
+        "question": "Briefly describe the remote sensing monitoring method of red tide phenomenon."
+    },
+    {
+        "question": "Briefly describe the principle of SAR to obtain the sea surface wind field."
+    },
+    {
+        "question": "Briefly discuss the basic principle of satellite altimeter altitude measurement."
+    },
+    {
+        "question": "Discuss the present situation, outlook and trend of the development of marine remote sensing."
+    },
+    {
+        "question": "Why is the 405 kyr long eccentricity period the most stable and commonly used for the calibration of geological time scale?"
+    },
+    {
+        "question": "Why was the length of a day shorter during geological history?"
+    },
+    {
+        "question": "What are the main mechanisms involved in the formation of the half-precession period?"
+    },
+    {
+        "question": "How do changes in the obliquity cycle affect the Earth's climate?"
+    },
+    {
+        "question": "Why was the geologic time period shorter than the present?"
+    },
+    {
+        "question": "Why can the s3-s6 term of obliquity period be used for stratigraphic calibration?"
+    },
+    {
+        "question": "How can you tell if a chaotic event occurred in the solar system during geologic history? Please list two geologic periods of chaos in the solar system."
+    },
+    {
+        "question": "Challenges in astrochronology and cyclostratigraphy"
+    },
+    {
+        "question": "Discuss the stratigraphic developmentpaleontological categories and representative tectonic movements and their effects of the South China Plate during the Late Paleozoic."
+    },
+    {
+        "question": "Please describe the mian features of the end-Permian mass extinction and its aftermath. And give at least three characteristicis. "
+    },
+    {
+        "question": "What is Wilson Cycle? And please give a short description."
+    },
+    {
+        "question": "Briefly describe the characteristics of two major sedimentary types in South China during the Devonian period."
+    },
+    {
+        "question": "Briefly describe the evolution trend of the North China Plate during the Ordovician period."
+    },
+    {
+        "question": " Briefly describe the force of water in rocks and the forms in which moisture exists."
+    },
+    {
+        "question": "Briefly describe the characteristics and differences between phreatic water and confined water."
+    },
+    {
+        "question": "Describe the principles, naming methods, and pros and cons of Shukalev's classification of groundwater chemical composition?"
+    },
+    {
+        "question": "Briefly describe the relationship of replenishment and discharge between rivers and groundwater from mountains to plains in different geomorphological positions."
+    },
+    {
+        "question": "What are the two main differences between the effects of leaching and dissolution?"
+    },
+    {
+        "question": " Briefly discuss the importance of research on the vadose zone."
+    },
+    {
+        "question": "What are the common and different responses of groundwater level when receiving precipitation and river recharge?"
+    },
+    {
+        "question": "Discuss the differences between karst water in the north and south of China."
+    },
+    {
+        "question": "Please use hydrogeochemical theory to explain the following phenomena. (1) The oilfield water contains high concentrations of H_2S and NH_4, and low concentrations of SO_4 and NO_3; (2) The groundwater from a pumping well in a water supply area becomes transparent and colorless after entering the pool, and soon a reddish-brown flocculent suspension appears; (3) Calcite appears at the spring outlet in the limestone area."
+    },
+    {
+        "question": "Briefly explain the meaning of total hardness, temporary hardness, permanent hardness of groundwater and the relationship between them."
+    },
+    {
+        "question": "What are the formation of the chemical composition of groundwater?"
+    },
+    {
+        "question": "The meaning of groundwater dynamics and dynamics of the factors affecting."
+    },
+    {
+        "question": "What are the characteristics of karst water?"
+    },
+    {
+        "question": "Briefly describe the general steps of making a flow network map?"
+    },
+    {
+        "question": "Diving isohydrograph can reveal what hydrogeological information?"
+    },
+    {
+        "question": "What are the factors affecting the degree of water supply and how are they affected?"
+    },
+    {
+        "question": "Briefly describe the classification of springs?"
+    },
+    {
+        "question": "Compared with surface water pollution, what are the characteristics of groundwater pollution?"
+    },
+    {
+        "question": "What are the similarities and differences between groundwater aquifer systems and groundwater flow systems?"
+    },
+    {
+        "question": "Briefly describe the causes of gravity anomalies and the geological-geophysical implications of the Bouguer gravity anomaly."
+    },
+    {
+        "question": "Briefly describe the characteristics of the high-density resistivity method."
+    },
+    {
+        "question": "Briefly describe the principles and characteristics of magnetic exploration."
+    },
+    {
+        "question": "Briefly describe the definition, basic principles, and advantages and disadvantages of magnetotelluric method (MT)."
+    },
+    {
+        "question": "Briefly describe the definitions of various velocities in seismic data processing and explain the importance of velocity information in the digital processing of seismic data."
+    },
+    {
+        "question": "Briefly describe the problems of CMP (common mid-point) stack section and explain the importance and necessity of the seismic migration."
+    },
+    {
+        "question": "Briefly describe the conventional processing flow of seismic data and the purpose and role of each processing step."
+    },
+    {
+        "question": "Briefly describe the characteristics of seismic data with the zero-phase wavelet and the process of synthetic seismic records."
+    },
+    {
+        "question": "Briefly describe the characteristics of time slices and their role in seismic data interpretation."
+    },
+    {
+        "question": "Briefly describe the advantages of vertical seismic profiles and crosshole seismic."
+    },
+    {
+        "question": "Comparison of the advantages and disadvantages of vector and raster data structures."
+    },
+    {
+        "question": "What is trend surface analysis? And what is its basic principle?"
+    },
+    {
+        "question": "Explain the basic principle of run length encoding."
+    },
+    {
+        "question": "What are the processing methods for mixed pixels in raster data?"
+    },
+    {
+        "question": "What are the significances of topological relationship of spatial data for GIS data processing and spatial analysis?"
+    },
+    {
+        "question": "How to determine the age of the earth?"
+    },
+    {
+        "question": "Briefly describe the boundaries and characteristics of lithospheric plates"
+    },
+    {
+        "question": "Briefly describe the division principles and results of the Earth's inner circles"
+    },
+    {
+        "question": "Briefly introduce the six major global plates and the main activity boundaries of them"
+    },
+    {
+        "question": "Briefly describe the earth's temperature layers, their distribution, temperature sources and change relationship."
+    },
+    {
+        "question": "Briefly describe the relationship between serpentine dehydration and moderate-depth earthquakes in the subduction zones"
+    },
+    {
+        "question": "What are the types of earthquake sequences and their definitions? What are their possible generating conditions?"
+    },
+    {
+        "question": "Briefly describe the generating mechanism of aftershocks."
+    },
+    {
+        "question": "Please describe what is the basic features of TopoJSON, which is a vector data format directly supported by Cesium?"
+    },
+    {
+        "question": "Please briefly describe what is the Cartesian spatial coordinate system, and how to convert a longitude and latitude coordinate into the Cartesian spatial coordinate system in Cesium?"
+    },
+    {
+        "question": "Please briefly describe the definition of Web Service? "
+    },
+    {
+        "question": "What are the three general stages of an HTTP session?"
+    },
+    {
+        "question": "Please briefly describe the working principle and purpose of Tile Map Service (TMS)? "
+    },
+    {
+        "question": "Please briefly describe the definition of production analysis in Spatial analysis, and list three commonly used production analysis? "
+    },
+    {
+        "question": "What are the basic features of KML format data in Cesium? "
+    },
+    {
+        "question": "What is DTM? "
+    },
+    {
+        "question": "Can you describe the analysis steps of spatial Buffer analysis? "
+    },
+    {
+        "question": "What is the physical mechanism of geostrophic adaptation?"
+    },
+    {
+        "question": "Based on the second type of conditional instability (CISK), please explain how a small tropical disturbance develops into a typhoon?"
+    },
+    {
+        "question": "what is thermal wind? how to explaine the westerly jet on the up level atmosphere over midlatitude?"
+    },
+    {
+        "question": "What is the ratio of internal energy to potential energy in the global atmosphere? And explain why the two are directly proportional?"
+    },
+    {
+        "question": " What are the similarities and differences between the secondary circulation caused by Ekman's suction and the secondary circulation in quasi-geostrophic motion?"
+    },
+    {
+        "question": "What is geostrophic deviation? How does geostrophic deviation affect the large-scale motion of the atmosphere?"
+    },
+    {
+        "question": " What are the characteristics and wave formation mechanism of Rossby waves?"
+    },
+    {
+        "question": "What is  isobaric atmosphere?"
+    },
+    {
+        "question": "What is the Taylor-Proudman theorem?"
+    },
+    {
+        "question": "What are the conditions for the appearance of the first type and the second type of quasi-geostrophic motion? What are the characteristics of each?"
+    },
+    {
+        "question": "Why is the ocean a regulator of climate?"
+    },
+    {
+        "question": "What causes the formation of Atmospheric circulation?"
+    },
+    {
+        "question": "What are the characteristics of vertical climate zones in mountainous areas?"
+    },
+    {
+        "question": "Please describe several primary sedimentary structures that can determine the face, top and bottom of the rock strata."
+    },
+    {
+        "question": "What is coaxial deformation? Is simple shear a coaxial deformation? Why?"
+    },
+    {
+        "question": "Fractures are discontinuities in the sliding and mechanical properties of rocks. Briefly describe which types of rock fractures are classified, and give examples of each."
+    },
+    {
+        "question": "What are the geomorphic signs for identifying faults? Please list at least three."
+    },
+    {
+        "question": "Briefly describe the difference between cleavage and schistosity."
+    },
+    {
+        "question": "What defines a synformal anticline, or an anticline with a synform shape?"
+    },
+    {
+        "question": "What are the secondary structures that can be used to determine the shear direction in mylonite zones?"
+    },
+    {
+        "question": "Briefly summarize the main factors affecting the mechanical properties of rocks."
+    },
+    {
+        "question": " The concept of Boudinage and its genesis type"
+    },
+    {
+        "question": "What is a joint?"
+    },
+    {
+        "question": "Analyze the impact of tourism development on regional social culture."
+    },
+    {
+        "question": "Problems caused by population growth and countermeasures"
+    },
+    {
+        "question": "What are the main geochemical end members of the oceanic mantle? What are their Sr-Nd-Pb isotopic characteristics, and where or in what tectonic environments are the rocks they produce located?"
+    },
+    {
+        "question": "When forming Rb-Sr isochrons, if the isotopic composition of certain geological bodies is relatively homogeneous and the differences in Rb/Sr ratios among various whole rock samples are small, which type of isochron can be utilized? What is the methodology? What are the advantages"
+    },
+    {
+        "question": "In a certain rock, it is known that the contents of potassium, thorium, and uranium are 3 wt.%, 10 ppm, and 2 ppm respectively, and the density of the rock is 3 g/cm3. Assuming that the contents of these three elements are evenly distributed in the rock, what is the minimum rate of radioactive heat production for this rock?"
+    },
+    {
+        "question": "A 200-Ma zircon with homogeneous internal structure is ablated from surface to 20m-depth. Given downhole fractionation process, does the ratio of 206Pb/238U increase or decrease during the ablation processes? Why?"
+    },
+    {
+        "question": "Please tell me why in some cases the zircon rim is older than zircon core?"
+    },
+    {
+        "question": "Why 207Pb/206Pb age is the best age for zircons older than 1200 Ma?"
+    },
+    {
+        "question": "Why can we use any age between 900-1200Ma as the cutoff of best age of 207Pb/206Pb and 206Pb/238U age."
+    },
+    {
+        "question": "Why for younger than 30-Ma zircons, we can obtain the usable age by selecting relatively low concordant zircon grains?"
+    },
+    {
+        "question": "Is it always true that 87Sr/86Sr from basalt is lower than the 87Sr/86Sr from continental crust? Why?"
+    },
+    {
+        "question": "From the perspective of engineering dynamic geology, please briefly describe the relationship between bank slope stability and river geological processes"
+    },
+    {
+        "question": "What changes occur in the medium field and flow field during the rapid development stage of karst?"
+    },
+    {
+        "question": "Why introduce the concept of relative density to evaluate the compactness of sand? What are the advantages and disadvantages of using it as an evaluation index for sand compactness?"
+    },
+    {
+        "question": "What is the root cause of surface energy generated by soil particles? Analyze the reasons for the significant differences in engineering geological properties between clay and sand particles from the perspective of hydration membranes."
+    },
+    {
+        "question": "What are the main factors that affect the shear strength of soil? How did it affect?"
+    },
+    {
+        "question": "Briefly describe the control measures for landslides."
+    },
+    {
+        "question": "Please briefly describe the basic principles of engineering geological exploration layout."
+    },
+    {
+        "question": "What are the similarities and differences between the Vadose zone and the saturated zone?"
+    },
+    {
+        "question": "What are the structural indicators for identifying faults?"
+    },
+    {
+        "question": "Why does the slope have tensile stress at the shoulder and Shear stress at the foot?"
+    },
+    {
+        "question": "Briefly describe the main contents and basic requirements of geologic mapping of granitoid."
+    },
+    {
+        "question": "Briefly describe the main observation contents of the intrusive rock region of the field geological observation route."
+    },
+    {
+        "question": "Briefly describe the work that must be done to establish a 'group'."
+    },
+    {
+        "question": "Identification markers of palimpsest stratified structures and metamorphic stratified structures."
+    },
+    {
+        "question": "Briefly describe seven sedimentary tectonic methods and principles for measuring paleocurrents direction in the field."
+    },
+    {
+        "question": "Briefly describe the content of lineament observations in the field."
+    },
+    {
+        "question": "Briefly describe the main material for field acceptance and verification of a regional geologic survey project."
+    },
+    {
+        "question": "Describe the basic content and requirements for indoor organization and comprehensive research of regional survey reports."
+    },
+    {
+        "question": "Briefly describe the contents of plotting and mapping for geological mapping work."
+    },
+    {
+        "question": "Briefly describe the main observation contents of mapping work in intrusive rock areas."
+    },
+    {
+        "question": "What is geothermal energy?"
+    },
+    {
+        "question": "What is shallow geothermal energy?"
+    },
+    {
+        "question": "What is dry hot rock?"
+    },
+    {
+        "question": "What are the main uses of geothermal energy?"
+    },
+    {
+        "question": "What are the benefits of radiant floor heating?"
+    },
+    {
+        "question": "Will geothermal development cause earthquakes, ground subsidence, or ground fissures?"
+    },
+    {
+        "question": "In what aspects does the development and utilization of geothermal resources reflect energy conservation and emission reduction?"
+    },
+    {
+        "question": "What types of temperature measurement curves are there in groundwater runoff areas, and what geological significance do they reflect?"
+    },
+    {
+        "question": "According to the temperature of the thermal fluid and the properties of the heat storage body, what types can geothermal resources be divided into?"
+    },
+    {
+        "question": "What are the main conditions and triggering factors for the formation of collapse?"
+    },
+    {
+        "question": "What categories can the process of weathering be subdivided"
+    },
+    {
+        "question": "What are the four periods of karst landform development?"
+    },
+    {
+        "question": "Please describe the basic characteristics of aeolian sand in terms of granularity, morphology, minerals, chemical composition and structure."
+    },
+    {
+        "question": "What are the basic characteristics of Quaternary sediments?"
+    },
+    {
+        "question": "What are the criteria for determining the formation of Quaternary sediments?"
+    },
+    {
+        "question": "What is the difference between underground rivers and subterranean flow?"
+    },
+    {
+        "question": "What are the types of neotectonic structures?"
+    },
+    {
+        "question": "Briefly describe the geological processes of glaciers."
+    },
+    {
+        "question": "How do river valleys form and evolve"
+    },
+    {
+        "question": "What are the main identification signs of alluvial deposits?"
+    },
+    {
+        "question": "Briefly describe the origin of river terraces."
+    },
+    {
+        "question": "What are the similarities and differences between debris flow deposits and alluvial deposits?"
+    },
+    {
+        "question": "How do you determine the existence of moraine deposit?"
+    },
+    {
+        "question": "What are the basic elements of landform ?"
+    },
+    {
+        "question": "What are the factors that affect the development of landforms?"
+    },
+    {
+        "question": "Describe the causes and geomorphological indicators of landslides."
+    },
+    {
+        "question": "What are the conditions for the formation of debris flows?"
+    },
+    {
+        "question": "What is parallel regression theory? What is the parallel descent theory? "
+    },
+    {
+        "question": "Please describe the concept and characteristics of Quaternary sediments."
+    },
+    {
+        "question": "What are the indicators for determining the genetic type of sediment?"
+    },
+    {
+        "question": "Explain why the fossil record from the Precambrian is very scarce?"
+    },
+    {
+        "question": "Discuss the plate tectonic movements of the Precambrian and how they affected the Earth's landscape. "
+    },
+    {
+        "question": "Briefly describe the time range of the Precambrian and its importance in Earth's history."
+    },
+    {
+        "question": "Describe the geological features of the Precambrian, including the formation and evolution of the crust, and the major geological events."
+    },
+    {
+        "question": "Kindly elucidate on the definition of the term 'Archean', and exemplify its chief geological occurrences."
+    },
+    {
+        "question": "Please describe the atmospheric composition of the Precambrian era, and elucidate its impact on earth's biotic and geologic processes."
+    },
+    {
+        "question": "Please elucidate the principal climatic disparities between the Archean and Oligocene Eons."
+    },
+    {
+        "question": "From the perspective of power geology, briefly describe the relationship between bank slope stability and fluvial geologic action"
+    },
+    {
+        "question": "What specialized studies should be conducted on the frequent seismic activity after the reservoir is completed and impounded?"
+    },
+    {
+        "question": "Regional tectonic stress-driven landslide breeding mechanisms"
+    },
+    {
+        "question": "What are those changes in the medium and flow fields that occur during the rapid development phase of karst?"
+    },
+    {
+        "question": "Discuss whether the temperature of a slope can be used as a precursor to landslide initiation in the context of rock slide dynamics."
+    },
+    {
+        "question": "Briefly describe the drivers of the hydrologic cycle and its basic cyclic processes"
+    },
+    {
+        "question": "What is the submarine snow line?"
+    },
+    {
+        "question": "One of the hot topics of academic debate has been about the causes of Wilson's Cyclotron, please give examples"
+    },
+    {
+        "question": "Briefly describe the theory of seafloor spreading?"
+    },
+    {
+        "question": "Briefly describe the basic principles of plate tectonics theory?"
+    },
+    {
+        "question": "Briefly describe the Wilson cycle and its representative stages?"
+    },
+    {
+        "question": "Briefly describe the basic characteristics of the platform?"
+    },
+    {
+        "question": "Briefly describe the several types of plate boundaries?"
+    },
+    {
+        "question": "What is a metamorphic double belt? Briefly describe its characteristics and causes."
+    },
+    {
+        "question": "Briefly describe the common characteristics of the structural units of the Yangzi platform."
+    },
+    {
+        "question": "Discuss the basic principles of oil source comparison, what are the commonly used indicators for oil source comparison? "
+    },
+    {
+        "question": "What are the general types of well logging methods?"
+    },
+    {
+        "question": "Discuss the necessary conditions for differential accumulation."
+    },
+    {
+        "question": "What geological factors affect differential accumulation?"
+    },
+    {
+        "question": "What are the causes of abnormal formation pressure?"
+    },
+    {
+        "question": "Briefly describe the basis, methods, and steps for oil layer division comparison."
+    },
+    {
+        "question": "A well obtains the core of the reservoir in the 1900-1930 meter well section. What underground geological information can be obtained by observing and describing this section of the core?"
+    },
+    {
+        "question": "When calculating oil reserves by the volumetric method, what factors affect the oil-bearing area? How to determine?"
+    },
+    {
+        "question": "Briefly describe the principles for selecting the location of the geological section of the oil and gas field."
+    },
+    {
+        "question": "Discuss the research content of reservoir heterogeneity and its influencing factors. "
+    },
+    {
+        "question": "Please discuss the similarities and differences between Clastic rock and Carbonate rock in terms of lithology, diagenesis, material composition, structural composition, and postdeposition."
+    },
+    {
+        "question": "Please explain the hydrodynamic characteristics of the sedimentation of the channel bar and point bar of the river separately"
+    },
+    {
+        "question": "Please discuss the formation conditions of the Alluvial fan, delta, and fan delta developed in the continental lake basin (from the aspects of the formation of paleotectonic conditions, formation location, paleoclimatic conditions, and Paleocurrent conditions) and lithologic characteristics (from the aspects of rock type, textures, and structures)"
+    },
+    {
+        "question": "What is event sedimentation and what are its characteristics compared to normal sedimentation? List 2-3 typical examples of event sedimentary rock."
+    },
+    {
+        "question": "Please discuss the relationship between delta sedimentation and oil and gas from four aspects: source rocks, reservoir rocks, caprocks, and traps"
+    },
+    {
+        "question": "What is a constructive delta? Discuss the identification features, sub-facies, microfacies division of a constructive delta, and analyze its relationship with oil and gas. "
+    },
+    {
+        "question": "Briefly describe the division of facies belts and their depositional conditions in the lateral sedimentary facies model of Wilson's carbonate rock. "
+    },
+    {
+        "question": "Briefly describe the conditions for the formation of alluvial fans."
+    },
+    {
+        "question": "Please provide a detailed description of the sedimentary characteristics of turbidites."
+    },
+    {
+        "question": "The analysis of paleo-water depth is of great significance for reconstructing ancient environments and understanding basin structure and evolution. Please discuss the indicators for determining the paleo-water depth and provide a detailed account of the sedimentological indicators in these paleo-water depth indicators."
+    },
+    {
+        "question": "Paleoclimate proxies are physical, chemical and biological materials preserved within the geologic record (in paleoclimate archives) that can be analyzed and correlated with climate or environmental parameters in the modern world. Please briefly describe the principles of physical, chemical and Bioindicator to reconstruct climate, and give 1-2 examples respectively."
+    },
+    {
+        "question": "List 5 methods for reconstructing CO2 alternative indicators and briefly describe their principles"
+    },
+    {
+        "question": "When did the Paleocene Eocene PETM event occur? How long does it last? What are the main manifestations and nature of the event? Briefly describe the cause and return mechanisms of the PETM event. Briefly describe global temperature changes and their impact on organisms during PETM. What is the main significance of studying PETM events?"
+    },
+    {
+        "question": "Briefly describe the principle of quantitative reconstruction of paleoclimate using transfer functions, list its specific methods, and compare the advantages and disadvantages of various methods. Finally, briefly describe the main problems of transfer functions"
+    },
+    {
+        "question": "What Causes Climate Change?"
+    },
+    {
+        "question": "Discuss the academic contributions of paleoclimatology to the construction of Earth System Science:"
+    },
+    {
+        "question": "Please provide a detailed description of the paleoclimate indicators of loess:"
+    },
+    {
+        "question": "Please list five characteristics of the Mid-Pleistocene climate transition:"
+    },
+    {
+        "question": "Please explain the uplift-weathering-CO2-climate effect in concise language:"
+    },
+    {
+        "question": "Discuss the implications of Cenozoic climate change:"
+    },
+    {
+        "question": "What are the main laws that control the combination of elements in nature?"
+    },
+    {
+        "question": "What is a trace element and how is it distinguished from a major element?"
+    },
+    {
+        "question": "The peridotite is composed of 70% olivine, 20% orthoropyroxene and 10% monoplopyroxene. The Ni content is 2000 ppm. The proportion of residual phase minerals is: olivine 76%, orthoropyroxene 20%, monoplopyroxene 4%. The partition coefficients between the individual minerals and the melt are: Dol = 10, Dopx = 2.5 cpD = 1.6. Try to calculate the content of Ni in the melt when 10% and 20% equilibrium partial melting occurs in the olivine. If 10% of the equilibrium part of the melt is melted, and then 10% of olivine is separated and crystallized, what is the Ni content composition of the residual melt?"
+    },
+    {
+        "question": "Why do Eu and Ce often have special abnormalities?"
+    },
+    {
+        "question": "What are the factors that affect the distribution coefficient?"
+    },
+    {
+        "question": "What is the general rule of the REE distribution coefficient?"
+    },
+    {
+        "question": "What are the major international journals in the field of geochemistry?"
+    },
+    {
+        "question": "What are the main fractionation processes of magnesium isotopes?"
+    },
+    {
+        "question": "How many stable nuclides are there with N = 82? List them. How many with N = 83? List them. Why the difference?"
+    },
+    {
+        "question": "Describe the concept of isotopes and explain how they differ from each other in terms of atomic structure and stability."
+    },
+    {
+        "question": "Discuss the various methods used in isotope geochemistry to determine the isotopic composition of elements in geological samples. Explain the principles behind each method."
+    },
+    {
+        "question": "Explain the process of isotopic fractionation and its significance in understanding geochemical processes. Provide examples of isotopic fractionation in natural systems and discuss their implications."
+    },
+    {
+        "question": "Describe the concept of radiogenic isotopes and explain how they are used to date geological materials. Discuss the principles of radiometric dating and provide examples of radiogenic isotopes commonly used for dating purposes."
+    },
+    {
+        "question": "Discuss the role of stable isotopes in tracing geochemical processes in Earth's systems. Choose a specific element and explain how its stable isotopes can be used as tracers in understanding environmental or geological processes."
+    },
+    {
+        "question": "Explain the concept of isotope mixing models and how they are used in isotope geochemistry. Provide an example of an isotope mixing model and discuss its applications in studying environmental or geological systems."
+    },
+    {
+        "question": "Discuss the importance of isotopic signatures in understanding the origin and migration of fluids in hydrothermal systems. Explain how isotopic compositions of elements can be used to identify the source of fluids and trace their flow paths."
+    },
+    {
+        "question": "Explain the concept of paleoclimate reconstruction using isotopic proxies. Choose a specific isotopic system (e.g., oxygen isotopes) and describe how it is used to reconstruct past climate conditions. Discuss the limitations and challenges associated with this approach."
+    },
+    {
+        "question": " Discuss the concept of isotopic disequilibrium and its implications in studying geological processes. Choose a specific example (e.g., weathering, magma differentiation) and explain how isotopic disequilibrium can provide insights into these processes."
+    },
+    {
+        "question": "Briefly describe the basic idea of the legal age of the U-Pb concord curve and write the equation of the fixed age."
+    },
+    {
+        "question": "Isotope dating formulas and geochronological assumptions"
+    },
+    {
+        "question": "What are the advantages of the Sm-Nd isochron method?"
+    },
+    {
+        "question": "Briefly describe the geological implications of radioisotope age:"
+    },
+    {
+        "question": "Basic principles of ordinary Pb dating method:"
+    },
+    {
+        "question": " Factors of isotope fractionation:"
+    },
+    {
+        "question": "Main features of the high U mantle (HIMU mantle):"
+    },
+    {
+        "question": "Why do Nd isotopes play an important role in exploring the mantle, crustal evolution, crustal-mantle exchange, lithogenesis and material sources?"
+    },
+    {
+        "question": "Reasons for changes in thickness of underground coal seams and their impact on production"
+    },
+    {
+        "question": "How to predict faults during coal mine production and how to determine the nature of faults when encountering them"
+    },
+    {
+        "question": "What are the main factors that affect the size of mine water inflow"
+    },
+    {
+        "question": "In the production process of mines, under what circumstances is it usually necessary to conduct advanced water exploration"
+    },
+    {
+        "question": "What are the characteristics of offshore coal bearing rock series"
+    },
+    {
+        "question": "Distinguishing between cleavage, joints, and bedding"
+    },
+    {
+        "question": "What are the necessary conditions for coal formation"
+    },
+    {
+        "question": "What are the physical properties of coal?"
+    },
+    {
+        "question": "Briefly describe the basic principles of layer chromatography analysis?"
+    },
+    {
+        "question": "Briefly describe the differences between spectroscopic analysis and mass spectrometric analysis?"
+    },
+    {
+        "question": "Why is Hf isotope analysis only possible using a Multi-Collector Inductively Coupled Plasma Mass Spectrometer (MC-ICPMS) and not a Thermal Ionization Mass Spectrometer (TIMS)?"
+    },
+    {
+        "question": "Briefly describe the commonly used gas chromatography detectors and their applications"
+    },
+    {
+        "question": "Based on the chromatographic elution curve, which of the following useful information can be obtained"
+    },
+    {
+        "question": "In an experiment on the hydrothermal reaction of basalt with seawater, how did the calcium and magnesium content of the seawater that reacted with the basalt change?"
+    },
+    {
+        "question": "Briefly describe what issues need to be addressed when applying experimental geochemistry to earth science research?"
+    },
+    {
+        "question": "What thoughtful arrangements should be included in a complete geochemistry experiment?"
+    },
+    {
+        "question": "How can spectroscopic techniques be used to determine species formation?"
+    },
+    {
+        "question": "Briefly describe the chemical composition and crystal structure characteristics of clay minerals?"
+    },
+    {
+        "question": "How does the acidity or alkalinity of a solution affect the transport and deposition of colloids, using the clay minerals kaolinite and montmorillonite as examples?"
+    },
+    {
+        "question": "What are the main rock-forming minerals of magmatic rock?"
+    },
+    {
+        "question": "What is the tholeiitic Series?"
+    },
+    {
+        "question": "Briefly describe the shoshonite series"
+    },
+    {
+        "question": "Briefly describe the plutonic intrusive rocks, hypabyssal intrusive rocks, and extrusive rocks of acidic magmatic rocks? "
+    },
+    {
+        "question": "How to distinguish amphibolite from pyrozenite"
+    },
+    {
+        "question": "The definition, geochemical characteristics and genetic mechanism of Adakite are briefly described"
+    },
+    {
+        "question": "What is differentiation of magma? What is assimilation of magma?"
+    },
+    {
+        "question": "The differences and relations between kimberlite and lamprophyre are briefly described?"
+    },
+    {
+        "question": "What are mineralising agents? What is their main role in the mineralisation of hydrothermal deposits?"
+    },
+    {
+        "question": "Distribution and main features of Carlin-type gold deposits?"
+    },
+    {
+        "question": "What are the internal and external conditions under which secondary enrichment mineralisation occurs? In what types of primary deposits does it mainly occur?"
+    },
+    {
+        "question": "Why are the trends in vertical zoning of veins in vein tungsten-tin and hydrothermal silver-lead-zinc-copper-molybdenum deposits opposite?"
+    },
+    {
+        "question": "What are the main factors that control the ore types in porphyry deposits?"
+    },
+    {
+        "question": "Classification and characteristics of shallow-forming cryogenic gold ores?"
+    },
+    {
+        "question": "What are the main characteristics of porphyry deposits?"
+    },
+    {
+        "question": "What are the most critical controls on the mineralisation of magmatic copper-nickel sulphide deposits?"
+    },
+    {
+        "question": "What is the significance of geochemical exploration?"
+    },
+    {
+        "question": "What are the classifications in Goldschmidt's elemental geochemistry?"
+    },
+    {
+        "question": "Briefly explain the meanings and characteristics of primary halos and secondary halos."
+    },
+    {
+        "question": "Under what conditions is stream sediment geochemical exploration applicable, and what is its function?"
+    },
+    {
+        "question": "How does soil sampling differ from stream sediment sampling in the field?"
+    },
+    {
+        "question": "What is the Clark value of elements? What is the geochemical significance of the Clark value?"
+    },
+    {
+        "question": "According to different media of geochemical surveys, what are the methods of geochemical prospecting?"
+    },
+    {
+        "question": "Factors influencing the migration of elements to form halos"
+    },
+    {
+        "question": "Explain the similarities and differences among the three methods of rock, soil, and stream sediment geochemical prospecting."
+    },
+    {
+        "question": "What is the relationship between geochemical background and geochemical anomalies?"
+    },
+    {
+        "question": "What is the main difference in geochemical properties between lithophile elements and chalcophile elements?"
+    },
+    {
+        "question": "What are the forms of element occurrence?"
+    },
+    {
+        "question": "Discuss the biogeochemical ore-forming mechanisms."
+    },
+    {
+        "question": "Discuss the ore-forming significance of element abundance."
+    },
+    {
+        "question": "Discuss the geochemical mechanisms of element enrichment and ore formation, taking magmatic-hydrothermal deposits as an example."
+    },
+    {
+        "question": "What is the difference between \"symbiotic component\" and \"associated component\"?"
+    },
+    {
+        "question": "What is the mode of ore element transportation in hydrothermal deposits?"
+    },
+    {
+        "question": "Briefly describe the formation characteristics and ore-bearing potential of major wall-rock alterations."
+    },
+    {
+        "question": "Discuss the distribution characteristics of elements in igneous rocks, sedimentary rocks, and soils."
+    },
+    {
+        "question": "Explain the controlling factors of secondary dispersion of ore-forming elements."
+    }
+]

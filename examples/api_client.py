@@ -17,12 +17,12 @@ def clear_line(n: int = 1) -> None:
     for _ in range(n):
         print(LINE_UP, end=LINE_CLEAR, flush=True)
 
-with open('/nas/czh/vllm/vllm_example_zj1.json') as f:
+with open('/root/vllm_test/czh/vllm/vllm_example_zj1.json') as f:
         data = json.load(f)
 
-with open('/nas/czh/vllm/lqa_v2.0.json') as f:
+with open('/root/vllm_test/czh/vllm/lqa_v2.0.json') as f:
         data1 = json.load(f)
-print(data1)
+# print(data1)
 
 def post_http_request(api_url: str, question: str) -> requests.Response:
     headers = {"User-Agent": "Test Client"}
@@ -34,7 +34,21 @@ def post_http_request(api_url: str, question: str) -> requests.Response:
     #     "max_tokens": 16,
     #     "stream": stream,
     # }
-    data["data"]["input"] = question
+    # data["data"]["input"] = question
+    data = {
+        "input": "who are you?",
+        "serviceParams": {
+            "promptTemplateName": "geogpt",
+            "stream":False,
+            "maxOutputLength": 3000
+        },
+        "history": [],
+        "modelParams": {
+            "temperature": 0.6,
+            "presence_penalty": 2.0,
+            "top_p": 0.8,
+        }
+    }
     response = requests.post(api_url, headers=headers, json=data, stream=True)
     return response
 
@@ -44,21 +58,22 @@ def get_streaming_response(response: requests.Response) -> Iterable[List[str]]:
                                      decode_unicode=False,
                                      delimiter=b"\0"):
         if chunk:
-            data = json.loads(chunk.decode("utf-8"))
-            output = data["data"]["output"]
+            # print(chunk)
+            output = json.loads(chunk.decode("utf-8"))            
             yield output
 
 
 def get_response(response: requests.Response) -> List[str]:
+    print('chaichai')
     data = json.loads(response.content)
-    output = data["data"]["output"]
+    output = data["data"]
     return output
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", type=str, default="10.200.48.45")
-    parser.add_argument("--port", type=int, default=18192)
+    parser.add_argument("--host", type=str, default="10.200.99.220")
+    parser.add_argument("--port", type=int, default=30106)
     # parser.add_argument("--host", type=str, default="10.244.127.79")
     # parser.add_argument("--port", type=int, default=8000)
     # parser.add_argument("--n", type=int, default=4)
@@ -79,15 +94,15 @@ if __name__ == "__main__":
             for h in get_streaming_response(response):
                 clear_line(num_printed_lines)
                 num_printed_lines = 0
-                for i, line in enumerate(h):
-                    num_printed_lines += 1
-                    print(f"Beam candidate {i}: {line!r}", flush=True)
+                num_printed_lines += 1
+                print(f"{h.get('output', '')!r}", flush=True)
         else:
             output = get_response(response)
             # for i, line in enumerate(output):
             #     pass
             #     # print(f"Beam candidate {i}: {line!r}", flush=True)
             # print(output)
+            print(output)
             question["answer"] = output
             question["answer_length"] = len(output)
                                         

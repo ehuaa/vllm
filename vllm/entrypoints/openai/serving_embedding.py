@@ -140,7 +140,6 @@ class OpenAIServingEmbedding(OpenAIServing):
             # process request input for SFR-Mistral-Embedding model
             if model_name.endswith('SFR-Embedding-Mistral'):
                 truncate_prompt_tokens = sfr_max_length - 1
-                tokenizer.add_eos_token=True
                 # convert embedding to get_detailed_instruct
                 if isinstance(request.input, list):
                     request.input = [get_detailed_instruct(task, it) for it in request.input]

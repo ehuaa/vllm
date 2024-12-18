@@ -221,7 +221,7 @@ if(VLLM_GPU_LANG STREQUAL "CUDA")
   else()
     FetchContent_Declare(
         cutlass
-        GIT_REPOSITORY https://mirror.ghproxy.com/https://github.com/nvidia/cutlass.git
+        GIT_REPOSITORY https://github.com/nvidia/cutlass.git
         GIT_TAG v3.5.1
         GIT_PROGRESS TRUE
 
