@@ -64,6 +64,7 @@ if __name__ == "__main__":
     parser.add_argument("--host", type=str, default=None)
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--model", type=str, default='/nas/czh/sfr/SFR-Embedding-Mistral')
+    parser.add_argument("--tensor-parallel-size", type=int, default=1)
     parser.add_argument("--ssl-keyfile", type=str, default=None)
     parser.add_argument("--ssl-certfile", type=str, default=None)
     parser.add_argument("--ssl-ca-certs",
@@ -84,7 +85,7 @@ if __name__ == "__main__":
     parser.add_argument("--log-level", type=str, default="info")
     
     args = parser.parse_args()
-    model = LLM(model=args.model, disable_sliding_window=True)
+    model = LLM(model=args.model, disable_sliding_window=True, task="embedding", tensor_parallel_size=args.tensor_parallel_size)
 
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     
