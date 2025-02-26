@@ -601,6 +601,7 @@ class OpenAIServingChat(OpenAIServing):
         if not request.llm_generate:
             # Send the final done message after all response.n are finished
             yield "data: [DONE]\n\n"
+        # TODO output done for benchmark serving end
         logger.info(f"Request {request.requestId} end time is {time.perf_counter()}")
 
     async def chat_completion_full_generator(

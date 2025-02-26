@@ -33,8 +33,56 @@ engine = None
 
 def get_detailed_instruct(task_description: str, query: str) -> str:
     return f'Instruct: {task_description}\nQuery: {query}'
-task = 'Given a web search query, retrieve relevant passages that answer the query'
 max_length = 4096
+
+
+@app.post("/query")
+async def query(request: Request) -> Response:
+    """Generate completion for the request.
+
+    The request should be a JSON object with the following fields:
+    - prompt: the prompt to use for the generation.
+    - stream: whether to stream the results or not.
+    - other fields: the sampling parameters (See `SamplingParams` for details).
+    """
+    request_dict = await request.json()
+    prompts = request_dict.pop("prompts")
+    instruction = request_dict.pop("instruction", 'Given a web search query, retrieve relevant passages that answer the query')
+    prompts = [get_detailed_instruct(instruction, it) for it in prompts]
+    llm_engine_prompt_encode_id_dict = [{"prompt_token_ids": tokenizer(prompt, max_length=max_length - 1, padding=True, truncation=True, return_tensors="pt")["input_ids"][0]} for prompt in prompts]
+    outputs = model.encode(llm_engine_prompt_encode_id_dict)
+    # res = [output.outputs.embedding for output in outputs]
+    header = struct.pack('II', len(outputs), len(outputs[0].outputs.embedding) if outputs[0] else 0)
+
+    body = [itm for output in outputs for itm in output.outputs.embedding]
+    # print(res)
+    return Response(content=header + struct.pack(f'{len(body)}f', *body))
+
+@app.post("/passage")
+async def passage(request: Request) -> Response:
+    """Generate completion for the request.
+
+    The request should be a JSON object with the following fields:
+    - prompt: the prompt to use for the generation.
+    - stream: whether to stream the results or not.
+    - other fields: the sampling parameters (See `SamplingParams` for details).
+    """
+    request_dict = await request.json()
+    prompts = request_dict.pop("prompts")
+    
+    # do not add instruction by default, otherwise use instruction to decorate prompts
+    instruct = request_dict.pop("instruction", "")
+    if instruct:
+        prompts = [get_detailed_instruct(instruct, it) for it in prompts]
+    
+    llm_engine_prompt_encode_id_dict = [{"prompt_token_ids": tokenizer(prompt, max_length=max_length - 1, padding=True, truncation=True, return_tensors="pt")["input_ids"][0]} for prompt in prompts]
+    outputs = model.encode(llm_engine_prompt_encode_id_dict)
+    # res = [output.outputs.embedding for output in outputs]
+    header = struct.pack('II', len(outputs), len(outputs[0].outputs.embedding) if outputs[0] else 0)
+
+    body = [itm for output in outputs for itm in output.outputs.embedding]
+    # print(res)
+    return Response(content=header + struct.pack(f'{len(body)}f', *body))
 
 
 @app.post("/embeddings")
@@ -48,7 +96,12 @@ async def create_embeddings(request: Request) -> Response:
     """
     request_dict = await request.json()
     prompts = request_dict.pop("prompts")
-    prompts = [get_detailed_instruct(task, it) for it in prompts]
+    
+    # do not add instruction by default, otherwise use instruction to decorate prompts
+    instruct = request_dict.pop("instruction", "")
+    if instruct:
+        prompts = [get_detailed_instruct(instruct, it) for it in prompts]
+    
     llm_engine_prompt_encode_id_dict = [{"prompt_token_ids": tokenizer(prompt, max_length=max_length - 1, padding=True, truncation=True, return_tensors="pt")["input_ids"][0]} for prompt in prompts]
     outputs = model.encode(llm_engine_prompt_encode_id_dict)
     # res = [output.outputs.embedding for output in outputs]

@@ -138,7 +138,8 @@ class OpenAIServingEmbedding(OpenAIServing):
             tokenizer = await self.engine_client.get_tokenizer(lora_request)
 
             # process request input for SFR-Mistral-Embedding model
-            if model_name.endswith('SFR-Embedding-Mistral'):
+            if request.instruction is not None:
+                task = request.instruction
                 truncate_prompt_tokens = sfr_max_length - 1
                 # convert embedding to get_detailed_instruct
                 if isinstance(request.input, list):
