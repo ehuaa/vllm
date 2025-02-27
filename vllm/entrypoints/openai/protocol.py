@@ -730,7 +730,7 @@ class EmbeddingCompletionRequest(OpenAIBaseModel):
     dimensions: Optional[int] = None
     user: Optional[str] = None
     truncate_prompt_tokens: Optional[Annotated[int, Field(ge=1)]] = None
-
+    instruction: Optional[str]=None
     # doc: begin-embedding-pooling-params
     additional_data: Optional[Any] = None
     # doc: end-embedding-pooling-params
@@ -763,7 +763,7 @@ class EmbeddingChatRequest(OpenAIBaseModel):
     dimensions: Optional[int] = None
     user: Optional[str] = None
     truncate_prompt_tokens: Optional[Annotated[int, Field(ge=1)]] = None
-
+    instruction: Optional[str]=None
     # doc: begin-chat-embedding-pooling-params
     additional_data: Optional[Any] = None
     # doc: end-chat-embedding-pooling-params

@@ -91,9 +91,9 @@ echo "PORT is $port"
 #while true; do sleep 1s; done;
 
 if [ -n "$EMBEDDING_OFFLINE" ]; then
-    python3 -m vllm.entrypoints.offline_embedding_server --port ${port} --host 0.0.0.0 --model ${MODEL} $ENFORCE_EAGER_ARG $DISABLE_LOG_ARG $DISABLE_SLIDING_WINDOW_ARG
+    python3 -m vllm.entrypoints.offline_embedding_server --port ${port} --host 0.0.0.0 --model ${MODEL} --tensor-parallel-size=${TP_SIZE} $ENFORCE_EAGER_ARG $DISABLE_LOG_ARG $DISABLE_SLIDING_WINDOW_ARG
 elif [ -n "$EMBEDDING_ONLINE" ]; then
-    python3 -m vllm.entrypoints.openai.api_server --port ${port} --host 0.0.0.0 --model ${MODEL} --task embedding $ENFORCE_EAGER_ARG $DISABLE_LOG_ARG $DISABLE_SLIDING_WINDOW_ARG
+    python3 -m vllm.entrypoints.openai.api_server --port ${port} --host 0.0.0.0 --model ${MODEL} --task embedding --tensor-parallel-size=${TP_SIZE} $ENFORCE_EAGER_ARG $DISABLE_LOG_ARG $DISABLE_SLIDING_WINDOW_ARG
 else
     python3 -m vllm.entrypoints.openai.api_server --port ${port} --host 0.0.0.0 \
     --gpu-memory-utilization ${gpu_usage} --tensor-parallel-size=${TP_SIZE} \

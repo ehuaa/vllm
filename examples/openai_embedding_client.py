@@ -21,7 +21,7 @@ with open('/root/vllm_test/czh/vllm/part_1.tsv', 'r', encoding='utf-8') as file:
 
 data = data[:1000]
 openai_api_key = "EMPTY"
-openai_api_base = "http://localhost:18192/v1"
+openai_api_base = "http://10.200.99.220:30410/v1"
 
 client = AsyncOpenAI(
     # defaults to os.environ.get("OPENAI_API_KEY")
@@ -51,7 +51,8 @@ async def send_request(prompt) -> None:
     models = await client.models.list()
     embeddings = await client.embeddings.create(
         model=models.data[0].id,
-        input=prompt
+        input=prompt,
+        extra_body={"instruction": "i'm czh"}
     )
     for data in embeddings.data:
         print(data.embedding[:10])
