@@ -1,5 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+
 # Test the AsyncLLMEngine with multi-step-decoding
-from typing import List, Optional
+from typing import Optional
 
 import pytest
 
@@ -15,9 +17,9 @@ MODELS = [
 NUM_SCHEDULER_STEPS = [8]  # Multi-step decoding steps
 NUM_PROMPTS = [10]
 
-DEFAULT_SERVER_ARGS: List[str] = [
-    "--disable-log-requests",
-    "--worker-use-ray",
+DEFAULT_SERVER_ARGS: list[str] = [
+    "--distributed-executor-backend",
+    "ray",
     "--gpu-memory-utilization",
     "0.85",
     "--swap-space",
@@ -110,7 +112,7 @@ async def test_multi_step(
 
     # Spin up client/server & issue completion API requests.
     # Default `max_wait_seconds` is 240 but was empirically
-    # was raised 3x to 720 *just for this test* due to
+    # was raised 5x to 1200 *just for this test* due to
     # observed timeouts in GHA CI
     ref_completions = await completions_with_server_args(
         prompts,

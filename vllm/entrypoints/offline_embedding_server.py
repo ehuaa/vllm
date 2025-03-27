@@ -33,7 +33,6 @@ engine = None
 
 def get_detailed_instruct(task_description: str, query: str) -> str:
     return f'Instruct: {task_description}\nQuery: {query}'
-max_length = 4096
 
 
 @app.post("/query")
@@ -49,8 +48,10 @@ async def query(request: Request) -> Response:
     prompts = request_dict.pop("prompts")
     instruction = request_dict.pop("instruction", 'Given a web search query, retrieve relevant passages that answer the query')
     prompts = [get_detailed_instruct(instruction, it) for it in prompts]
-    llm_engine_prompt_encode_id_dict = [{"prompt_token_ids": tokenizer(prompt, max_length=max_length - 1, padding=True, truncation=True, return_tensors="pt")["input_ids"][0]} for prompt in prompts]
-    outputs = model.encode(llm_engine_prompt_encode_id_dict)
+    # llm_engine_prompt_encode_id_dict = [{"prompt_token_ids": tokenizer(prompt, max_length=max_length, padding=True, truncation=True, return_tensors="pt")["input_ids"][0]} for prompt in prompts]
+    prompt_encode_ids = tokenizer(prompts, max_length=max_length, truncation=True)['input_ids']
+    embed_input = [{"prompt_token_ids":prompt_ids} for prompt_ids in prompt_encode_ids]
+    outputs = model.embed(embed_input)
     # res = [output.outputs.embedding for output in outputs]
     header = struct.pack('II', len(outputs), len(outputs[0].outputs.embedding) if outputs[0] else 0)
 
@@ -74,9 +75,23 @@ async def passage(request: Request) -> Response:
     instruct = request_dict.pop("instruction", "")
     if instruct:
         prompts = [get_detailed_instruct(instruct, it) for it in prompts]
-    
-    llm_engine_prompt_encode_id_dict = [{"prompt_token_ids": tokenizer(prompt, max_length=max_length - 1, padding=True, truncation=True, return_tensors="pt")["input_ids"][0]} for prompt in prompts]
-    outputs = model.encode(llm_engine_prompt_encode_id_dict)
+    # print(prompts)
+    t1 = time.perf_counter()
+    # batch_sentences = [
+    # "But what about second breakfast?",
+    # "Don't think he knows about second breakfast, Pip.",
+    # "What about elevensies?",
+    # ]
+    # encoded_inputs = tokenizer(batch_sentences, max_length=max_length, truncation=True)
+    # print(encoded_inputs)
+    # prompt_encode_ids = [{"prompt_token_ids":tokenizer(prompt, max_length=max_length, truncation=True, padding=False)['input_ids']} for prompt in prompts]
+    prompt_encode_ids = tokenizer(prompts, max_length=max_length, truncation=True)['input_ids']
+    embed_input = [{"prompt_token_ids":prompt_ids} for prompt_ids in prompt_encode_ids]
+    print(time.perf_counter() - t1)
+    # print(prompt_encode_ids[0])
+    t0 = time.perf_counter()
+    outputs = model.embed(embed_input)
+    print(time.perf_counter() - t0)
     # res = [output.outputs.embedding for output in outputs]
     header = struct.pack('II', len(outputs), len(outputs[0].outputs.embedding) if outputs[0] else 0)
 
@@ -102,8 +117,12 @@ async def create_embeddings(request: Request) -> Response:
     if instruct:
         prompts = [get_detailed_instruct(instruct, it) for it in prompts]
     
-    llm_engine_prompt_encode_id_dict = [{"prompt_token_ids": tokenizer(prompt, max_length=max_length - 1, padding=True, truncation=True, return_tensors="pt")["input_ids"][0]} for prompt in prompts]
-    outputs = model.encode(llm_engine_prompt_encode_id_dict)
+    # llm_engine_prompt_encode_id_dict = [{"prompt_token_ids": tokenizer(prompt, max_length=max_length, padding=True, truncation=True, return_tensors="pt")["input_ids"][0]} for prompt in prompts]
+    t0 = time.perf_counter()
+    prompt_encode_ids = tokenizer(prompts, max_length=max_length, truncation=True)['input_ids']
+    embed_input = [{"prompt_token_ids":prompt_ids} for prompt_ids in prompt_encode_ids]
+    outputs = model.embed(embed_input)
+    print(time.perf_counter() - t0)
     # res = [output.outputs.embedding for output in outputs]
     header = struct.pack('II', len(outputs), len(outputs[0].outputs.embedding) if outputs[0] else 0)
 
@@ -118,8 +137,10 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--model", type=str, default='/nas/czh/sfr/SFR-Embedding-Mistral')
     parser.add_argument("--tensor-parallel-size", type=int, default=1)
+    parser.add_argument("--max-num-seqs", type=int, default=128)
     parser.add_argument("--ssl-keyfile", type=str, default=None)
     parser.add_argument("--ssl-certfile", type=str, default=None)
+    parser.add_argument("--tokenizer-max-length", type=int, default=4096)
     parser.add_argument("--ssl-ca-certs",
                         type=str,
                         default=None,
@@ -138,9 +159,9 @@ if __name__ == "__main__":
     parser.add_argument("--log-level", type=str, default="info")
     
     args = parser.parse_args()
-    model = LLM(model=args.model, disable_sliding_window=True, task="embedding", tensor_parallel_size=args.tensor_parallel_size)
-
+    model = LLM(model=args.model, disable_sliding_window=True, task="embedding", tensor_parallel_size=args.tensor_parallel_size, max_num_seqs=args.max_num_seqs)
     tokenizer = AutoTokenizer.from_pretrained(args.model)
+    max_length = args.tokenizer_max_length
     
     # add_eos_token is set to true in tokenizer_config.json
     # tokenizer.add_eos_token = True

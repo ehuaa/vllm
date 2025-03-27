@@ -1,9 +1,11 @@
-from typing import List, Optional, Type
+# SPDX-License-Identifier: Apache-2.0
+
+from typing import Optional
 
 import pytest
 import torch
 
-from vllm.multimodal.utils import rescale_image_size
+from vllm.multimodal.image import rescale_image_size
 
 from ....conftest import IMAGE_ASSETS, VllmRunner, _ImageAssets
 from ...utils import check_logprobs_close
@@ -17,12 +19,12 @@ HF_IMAGE_PROMPTS = IMAGE_ASSETS.prompts({
 
 
 def run_awq_test(
-    vllm_runner: Type[VllmRunner],
+    vllm_runner: type[VllmRunner],
     image_assets: _ImageAssets,
     source_model: str,
     quant_model: str,
     *,
-    size_factors: List[float],
+    size_factors: list[float],
     dtype: str,
     max_tokens: int,
     num_logprobs: int,

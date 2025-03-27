@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 Benchmark the efficiency of prefix caching.
 
@@ -10,7 +11,8 @@ Fixed example usage:
         --model meta-llama/Llama-2-7b-chat-hf \
         --enable-prefix-caching \
         --num-prompts 1 \
-        --repeat-count 100
+        --repeat-count 100 \
+        --input-length-range 128:256
 
 ShareGPT example usage:
     # This command samples 20 prompts with input lengths
@@ -29,7 +31,7 @@ import dataclasses
 import json
 import random
 import time
-from typing import List, Optional, Tuple
+from typing import Optional
 
 from transformers import PreTrainedTokenizerBase
 
@@ -75,9 +77,9 @@ def sample_requests_from_dataset(
     dataset_path: str,
     num_requests: int,
     tokenizer: PreTrainedTokenizerBase,
-    input_length_range: Tuple[int, int],
+    input_length_range: tuple[int, int],
     fixed_output_len: Optional[int],
-) -> List[Request]:
+) -> list[Request]:
     if fixed_output_len is not None and fixed_output_len < 4:
         raise ValueError("output_len too small")
 
@@ -97,7 +99,7 @@ def sample_requests_from_dataset(
     assert min_len >= 0 and max_len >= min_len, "input_length_range too small"
 
     # Filter out sequences that are too long or too short
-    filtered_requests: List[Request] = []
+    filtered_requests: list[Request] = []
 
     for i in range(len(dataset)):
         if len(filtered_requests) == num_requests:
@@ -120,10 +122,10 @@ def sample_requests_from_dataset(
 def sample_requests_from_random(
     num_requests: int,
     tokenizer: PreTrainedTokenizerBase,
-    input_length_range: Tuple[int, int],
+    input_length_range: tuple[int, int],
     fixed_output_len: Optional[int],
     prefix_len: int,
-) -> List[Request]:
+) -> list[Request]:
 
     requests = []
     prefix_token_ids = sample_tokens(tokenizer, prefix_len)
@@ -142,9 +144,9 @@ def sample_requests_from_random(
     return requests
 
 
-def repeat_and_sort_requests(requests: List[Request],
+def repeat_and_sort_requests(requests: list[Request],
                              repeat_count: int,
-                             sort: bool = False) -> List[str]:
+                             sort: bool = False) -> list[str]:
     repeated_requests = requests * repeat_count
     if sort:
         repeated_requests.sort(key=lambda x: x[1])

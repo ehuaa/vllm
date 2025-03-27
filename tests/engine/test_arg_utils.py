@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 from argparse import ArgumentTypeError
 
 import pytest
@@ -50,12 +52,12 @@ def test_compilation_config():
     args = parser.parse_args(["-O=3"])
     assert args.compilation_config.level == 3
 
-    # set to json
-    args = parser.parse_args(["--compilation-config", '{"level": 3}'])
+    # set to string form of a dict
+    args = parser.parse_args(["--compilation-config", "{'level': 3}"])
     assert args.compilation_config.level == 3
 
-    # set to json
-    args = parser.parse_args(['--compilation-config={"level": 3}'])
+    # set to string form of a dict
+    args = parser.parse_args(["--compilation-config={'level': 3}"])
     assert args.compilation_config.level == 3
 
 

@@ -2,8 +2,8 @@
 # to run the OpenAI compatible server.
 
 # Please update any changes made here to
-# docs/source/dev/dockerfile/dockerfile.rst and
-# docs/source/assets/dev/dockerfile-stages-dependency.png
+# docs/source/contributing/dockerfile/dockerfile.md and
+# docs/source/assets/contributing/dockerfile-stages-dependency.png
 
 ARG CUDA_VERSION=12.3.2
 #################### BASE BUILD IMAGE ####################
@@ -12,7 +12,7 @@ FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu22.04 AS base
 
 ARG CUDA_VERSION=12.3.2
 ARG PYTHON_VERSION=3.12
-
+ARG TARGETPLATFORM
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install Python and other dependencies
@@ -28,6 +28,9 @@ RUN echo 'tzdata tzdata/Areas select America' | debconf-set-selections \
     && ln -sf /usr/bin/python${PYTHON_VERSION}-config /usr/bin/python3-config \
     && curl -sS https://bootstrap.pypa.io/get-pip.py | python${PYTHON_VERSION} \
     && python3 --version && python3 -m pip --version
+# Install uv for faster pip installs
+RUN --mount=type=cache,target=/root/.cache/uv \
+    python3 -m pip install uv
 
 # Upgrade to GCC 10 to avoid https://gcc.gnu.org/bugzilla/show_bug.cgi?id=92519
 # as it was causing spam when compiling the CUTLASS kernels
@@ -46,12 +49,22 @@ RUN ldconfig /usr/local/cuda-$(echo $CUDA_VERSION | cut -d. -f1,2)/compat/
 WORKDIR /workspace
 
 # install build and runtime dependencies
+
+# arm64 (GH200) build follows the practice of "use existing pytorch" build,
+# we need to install torch and torchvision from the nightly builds first,
+# pytorch will not appear as a vLLM dependency in all of the following steps
+# after this step
+RUN --mount=type=cache,target=/root/.cache/uv \
+    if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+        uv pip install --system --index-url https://download.pytorch.org/whl/nightly/cu126 "torch==2.7.0.dev20250121+cu126" "torchvision==0.22.0.dev20250121";  \
+    fi
+
 COPY requirements-common.txt requirements-common.txt
 COPY requirements-cuda.txt requirements-cuda.txt
 RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
-RUN --mount=type=cache,target=/root/.cache/pip \
-    python3 -m pip install -r requirements-cuda.txt
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -r requirements-cuda.txt
 
 
 # cuda arch list used by torch
@@ -61,18 +74,19 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 ARG torch_cuda_arch_list='7.0 8.0+PTX'
 ENV TORCH_CUDA_ARCH_LIST=${torch_cuda_arch_list}
 # Override the arch list for flash-attn to reduce the binary size
-ARG vllm_fa_cmake_gpu_arches='80-real;90-real'
+ARG vllm_fa_cmake_gpu_arches='80-real'
 ENV VLLM_FA_CMAKE_GPU_ARCHES=${vllm_fa_cmake_gpu_arches}
 #################### BASE BUILD IMAGE ####################
 
 #################### WHEEL BUILD IMAGE ####################
 FROM base AS build
+ARG TARGETPLATFORM
 
 # install build dependencies
 COPY requirements-build.txt requirements-build.txt
 
-RUN --mount=type=cache,target=/root/.cache/pip \
-    python3 -m pip install -r requirements-build.txt
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -r requirements-build.txt
 
 COPY . .
 ARG GIT_REPO_CHECK=0
@@ -91,7 +105,7 @@ ARG SCCACHE_BUCKET_NAME=vllm-build-sccache
 ARG SCCACHE_REGION_NAME=us-west-2
 ARG SCCACHE_S3_NO_CREDENTIALS=0
 # if USE_SCCACHE is set, use sccache to speed up compilation
-RUN --mount=type=cache,target=/root/.cache/pip \
+RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=.git,target=.git \
     if [ "$USE_SCCACHE" = "1" ]; then \
         echo "Installing sccache..." \
@@ -111,7 +125,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 ENV CCACHE_DIR=/root/.cache/ccache
 RUN --mount=type=cache,target=/root/.cache/ccache \
-    --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=.git,target=.git  \
     if [ "$USE_SCCACHE" != "1" ]; then \
         python3 setup.py bdist_wheel --dist-dir=dist --py-limited-api=cp38; \
@@ -119,8 +133,8 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
 
 # Check the size of the wheel if RUN_WHEEL_CHECK is true
 COPY .buildkite/check-wheel-size.py check-wheel-size.py
-# Default max size of the wheel is 250MB
-ARG VLLM_MAX_SIZE_MB=250
+# sync the default value with .buildkite/check-wheel-size.py
+ARG VLLM_MAX_SIZE_MB=400
 ENV VLLM_MAX_SIZE_MB=$VLLM_MAX_SIZE_MB
 ARG RUN_WHEEL_CHECK=true
 RUN if [ "$RUN_WHEEL_CHECK" = "true" ]; then \
@@ -136,17 +150,18 @@ FROM base as dev
 COPY requirements-lint.txt requirements-lint.txt
 COPY requirements-test.txt requirements-test.txt
 COPY requirements-dev.txt requirements-dev.txt
-RUN --mount=type=cache,target=/root/.cache/pip \
-    python3 -m pip install -r requirements-dev.txt
-
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -r requirements-dev.txt
 #################### DEV IMAGE ####################
+
 #################### vLLM installation IMAGE ####################
 # image with vLLM installed
-FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu22.04 AS vllm-base
+FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu22.04 AS vllm-base
 ARG CUDA_VERSION=12.3.2
 ARG PYTHON_VERSION=3.12
 WORKDIR /vllm-workspace
 ENV DEBIAN_FRONTEND=noninteractive
+ARG TARGETPLATFORM
 
 RUN PYTHON_VERSION_STR=$(echo ${PYTHON_VERSION} | sed 's/\.//g') && \
     echo "export PYTHON_VERSION_STR=${PYTHON_VERSION_STR}" >> /etc/environment
@@ -155,7 +170,7 @@ RUN PYTHON_VERSION_STR=$(echo ${PYTHON_VERSION} | sed 's/\.//g') && \
 RUN echo 'tzdata tzdata/Areas select America' | debconf-set-selections \
     && echo 'tzdata tzdata/Zones/America select Los_Angeles' | debconf-set-selections \
     && apt-get update -y \
-    && apt-get install -y ccache software-properties-common git curl sudo vim python3-pip \
+    && apt-get install -y ccache software-properties-common git curl wget sudo vim python3-pip \
     && apt-get install -y ffmpeg libsm6 libxext6 libgl1 \
     && add-apt-repository ppa:deadsnakes/ppa \
     && apt-get update -y \
@@ -165,6 +180,9 @@ RUN echo 'tzdata tzdata/Areas select America' | debconf-set-selections \
     && ln -sf /usr/bin/python${PYTHON_VERSION}-config /usr/bin/python3-config \
     && curl -sS https://bootstrap.pypa.io/get-pip.py | python${PYTHON_VERSION} \
     && python3 --version && python3 -m pip --version
+# Install uv for faster pip installs
+RUN --mount=type=cache,target=/root/.cache/uv \
+    python3 -m pip install uv
 
     RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
@@ -174,17 +192,48 @@ RUN echo 'tzdata tzdata/Areas select America' | debconf-set-selections \
 # or future versions of triton.
 RUN ldconfig /usr/local/cuda-$(echo $CUDA_VERSION | cut -d. -f1,2)/compat/
 
-# install vllm wheel first, so that torch etc will be installed
+# arm64 (GH200) build follows the practice of "use existing pytorch" build,
+# we need to install torch and torchvision from the nightly builds first,
+# pytorch will not appear as a vLLM dependency in all of the following steps
+# after this step
+RUN --mount=type=cache,target=/root/.cache/uv \
+    if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+        uv pip install --system --index-url https://download.pytorch.org/whl/nightly/cu124 "torch==2.6.0.dev20241210+cu124" "torchvision==0.22.0.dev20241215";  \
+    fi
+
+# Install vllm wheel first, so that torch etc will be installed.
 RUN --mount=type=bind,from=build,src=/workspace/dist,target=/vllm-workspace/dist \
-    --mount=type=cache,target=/root/.cache/pip \
-    python3 -m pip install dist/*.whl --verbose
+    --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system dist/*.whl --verbose
 
-# RUN --mount=type=cache,target=/root/.cache/pip \
-#     . /etc/environment && \
-#     python3 -m pip install https://github.com/flashinfer-ai/flashinfer/releases/download/v0.1.6/flashinfer-0.1.6+cu121torch2.4-cp${PYTHON_VERSION_STR}-cp${PYTHON_VERSION_STR}-linux_x86_64.whl
+# If we need to build FlashInfer wheel before its release:
+# $ export FLASHINFER_ENABLE_AOT=1
+# $ # Note we remove 7.0 from the arch list compared to the list below, since FlashInfer only supports sm75+
+# $ export TORCH_CUDA_ARCH_LIST='7.5 8.0 8.6 8.9 9.0+PTX'
+# $ git clone https://github.com/flashinfer-ai/flashinfer.git --recursive
+# $ cd flashinfer
+# $ git checkout 524304395bd1d8cd7d07db083859523fcaa246a4
+# $ rm -rf build
+# $ python3 setup.py bdist_wheel --dist-dir=dist --verbose
+# $ ls dist
+# $ # upload the wheel to a public location, e.g. https://wheels.vllm.ai/flashinfer/524304395bd1d8cd7d07db083859523fcaa246a4/flashinfer_python-0.2.1.post1+cu124torch2.5-cp38-abi3-linux_x86_64.whl
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+. /etc/environment && \
+if [ "$TARGETPLATFORM" != "linux/arm64" ]; then \
+    uv pip install --system https://ghfast.top/https://github.com/flashinfer-ai/flashinfer/releases/download/v0.2.1.post1/flashinfer_python-0.2.1.post1+cu124torch2.5-cp38-abi3-linux_x86_64.whl ; \
+fi
 COPY examples examples
-#################### vLLM installation IMAGE ####################
 
+# Although we build Flashinfer with AOT mode, there's still
+# some issues w.r.t. JIT compilation. Therefore we need to
+# install build dependencies for JIT compilation.
+# TODO: Remove this once FlashInfer AOT wheel is fixed
+COPY requirements-build.txt requirements-build.txt
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -r requirements-build.txt
+
+#################### vLLM installation IMAGE ####################
 
 #################### TEST IMAGE ####################
 # image to run unit testing suite
@@ -194,16 +243,16 @@ FROM vllm-base AS test
 ADD . /vllm-workspace/
 
 # install development dependencies (for testing)
-RUN --mount=type=cache,target=/root/.cache/pip \
-    python3 -m pip install -r requirements-dev.txt
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -r requirements-dev.txt
 
 # install development dependencies (for testing)
-RUN --mount=type=cache,target=/root/.cache/pip \
-    python3 -m pip install -e tests/vllm_test_utils
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -e tests/vllm_test_utils
 
 # enable fast downloads from hf (for testing)
-RUN --mount=type=cache,target=/root/.cache/pip \
-    python3 -m pip install hf_transfer
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system hf_transfer
 ENV HF_HUB_ENABLE_HF_TRANSFER 1
 
 # Copy in the v1 package for testing (it isn't distributed yet)
@@ -215,16 +264,19 @@ COPY vllm/v1 /usr/local/lib/python3.12/dist-packages/vllm/v1
 RUN mkdir test_docs
 RUN mv docs test_docs/
 RUN mv vllm test_docs/
-
 #################### TEST IMAGE ####################
 
 #################### OPENAI API SERVER ####################
-# openai api server alternative
-FROM vllm-base AS vllm-openai
+# base openai image with additional requirements, for any subsequent openai-style images
+FROM vllm-base AS vllm-openai-base
 
 # install additional dependencies for openai api server
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install accelerate hf_transfer 'modelscope!=1.15.0' 'bitsandbytes>=0.44.0' timm==0.9.10
+RUN --mount=type=cache,target=/root/.cache/uv \
+    if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+        uv pip install --system accelerate hf_transfer 'modelscope!=1.15.0' 'bitsandbytes>=0.42.0' 'timm==0.9.10' boto3 runai-model-streamer runai-model-streamer[s3]; \
+    else \
+        uv pip install --system accelerate hf_transfer 'modelscope!=1.15.0' 'bitsandbytes>=0.45.0' 'timm==0.9.10' boto3 runai-model-streamer runai-model-streamer[s3]; \
+    fi
 
 # change workdir to /workspace/app
 WORKDIR /workspace/app
@@ -233,6 +285,8 @@ COPY gpu_count.py /workspace/app/gpu_count.py
 
 RUN chmod 755 entrypoint.sh
 ENV VLLM_USAGE_SOURCE production-docker-image
+
+FROM vllm-openai-base AS vllm-openai
 
 ENTRYPOINT ["./entrypoint.sh"]
 #################### OPENAI API SERVER ####################

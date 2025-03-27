@@ -1,6 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+
 import random
 import time
-from typing import List, Optional
+from typing import Optional
 
 import torch
 
@@ -52,7 +54,7 @@ def main(
 
     # Create the block tables.
     max_num_blocks_per_seq = (max_seq_len + block_size - 1) // block_size
-    block_tables_lst: List[List[int]] = []
+    block_tables_lst: list[list[int]] = []
     for _ in range(num_seqs):
         block_table = [
             random.randint(0, NUM_BLOCKS - 1)
@@ -98,7 +100,9 @@ def main(
         start_time = time.perf_counter()
 
         # Using default kv_scale
-        k_scale = v_scale = 1.0
+        k_scale = v_scale = torch.tensor(1.0,
+                                         dtype=torch.float32,
+                                         device=device)
 
         for _ in range(num_iters):
             if version == "v1":
