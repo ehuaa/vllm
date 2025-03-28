@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 Test the piecewise compilation with a simple model so that we
 can exactly calculate the expected output and side effects.
@@ -7,7 +8,6 @@ import torch
 from torch import nn
 from torch.library import Library
 
-from vllm.compilation.compile_context import set_compile_context
 from vllm.compilation.counter import compilation_counter
 from vllm.compilation.decorators import support_torch_compile
 from vllm.config import (CompilationConfig, CompilationLevel, VllmConfig,
@@ -81,6 +81,7 @@ def test_simple_piecewise_compile():
         use_cudagraph=True,
         splitting_ops=["silly.attention"],
         cudagraph_copy_inputs=True,
+        cudagraph_capture_sizes=[1, 2],
     ))
     with set_current_vllm_config(vllm_config):
         model = SillyModel(vllm_config=vllm_config, prefix='')
@@ -91,16 +92,15 @@ def test_simple_piecewise_compile():
             num_graphs_seen=1,  # one graph for the model
             num_piecewise_graphs_seen=5,  # 2 * num_layers + 1
             num_piecewise_capturable_graphs_seen=3,  # 1 + num_layers
-            num_inductor_compilations=3,  # num_piecewise_capturable_graphs_seen
+            num_backend_compilations=3,  # num_piecewise_capturable_graphs_seen
             num_cudagraph_caputured=
             6,  # num_cudagraph_sizes * num_piecewise_capturable_graphs_seen
     ):
 
-        with set_compile_context([1, 2]):
-            model(inputs)
+        model(inputs)
 
-            model(torch.randn(2).cuda())
-            model(torch.randn(1).cuda())
+        model(torch.randn(2).cuda())
+        model(torch.randn(1).cuda())
 
         input = torch.zeros(2).cuda()
         global global_counter

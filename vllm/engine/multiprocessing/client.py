@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 import asyncio
 import copy
 import pickle
@@ -9,6 +11,7 @@ import cloudpickle
 import psutil
 import zmq
 import zmq.asyncio
+from typing_extensions import deprecated
 from zmq import Frame  # type: ignore[attr-defined]
 from zmq.asyncio import Socket
 
@@ -24,9 +27,13 @@ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
                                          IPC_HEALTH_EXT, IPC_INPUT_EXT,
                                          IPC_OUTPUT_EXT, RPC_REQUEST_T,
                                          VLLM_RPC_SUCCESS_STR, RPCAbortRequest,
-                                         RPCError, RPCProcessRequest,
-                                         RPCStartupRequest, RPCStartupResponse,
-                                         RPCUProfileRequest)
+                                         RPCAdapterLoadedResponse, RPCError,
+                                         RPCLoadAdapterRequest,
+                                         RPCProcessRequest,
+                                         RPCResetPrefixCacheRequest,
+                                         RPCSleepRequest, RPCStartupRequest,
+                                         RPCStartupResponse,
+                                         RPCUProfileRequest, RPCWakeUpRequest)
 from vllm.engine.protocol import EngineClient
 # yapf: enable
 from vllm.envs import VLLM_RPC_TIMEOUT
@@ -93,8 +100,7 @@ class MQLLMEngineClient(EngineClient):
             model_config=self.model_config,
             scheduler_config=engine_config.scheduler_config,
             parallel_config=engine_config.parallel_config,
-            enable_lora=bool(engine_config.lora_config),
-        )
+            lora_config=engine_config.lora_config)
         self.input_preprocessor = InputPreprocessor(self.model_config,
                                                     self.tokenizer)
 
@@ -240,22 +246,34 @@ class MQLLMEngineClient(EngineClient):
                         queue = self.output_queues.get(request_id)
                         if queue is not None:
                             queue.put_nowait(exception)
+                # Put each output into the appropriate queue.
+                elif isinstance(request_outputs, RPCAdapterLoadedResponse):
+                    self._add_output(request_outputs)
                 else:
-                    # Put each output into the appropriate steam.
                     for request_output in request_outputs:
-                        queue = self.output_queues.get(
-                            request_output.request_id)
-                        if queue is not None:
-                            queue.put_nowait(request_output)
+                        self._add_output(request_output)
 
         except asyncio.CancelledError:
             logger.debug("Shutting down MQLLMEngineClient output handler.")
+
+    def _add_output(self, request_output: Union[RequestOutput,
+                                                RPCAdapterLoadedResponse]):
+        queue = self.output_queues.get(request_output.request_id)
+        if queue is not None:
+            queue.put_nowait(request_output)
 
     async def setup(self):
         """Setup the client before it starts sending server requests."""
 
         # Start output_loop
-        self.output_loop = asyncio.create_task(self.run_output_handler_loop())
+        if self.output_loop is None:
+            # only generate once to avoid multiple concurrent output_loops
+            # this will lead to race conditions and wrong orders of tokens
+            # returned by the engine
+            # setup will be called multiple times during the startup of
+            # the engine
+            self.output_loop = asyncio.create_task(
+                self.run_output_handler_loop())
 
         with self.get_data_socket() as socket:
             # Wait until server is ready.
@@ -264,8 +282,9 @@ class MQLLMEngineClient(EngineClient):
             self.tracing_flag = response.tracing_enabled
 
             # Start health_loop.
-            self.health_loop = asyncio.create_task(
-                self.run_heartbeat_loop(timeout=VLLM_RPC_TIMEOUT))
+            if self.health_loop is None:
+                self.health_loop = asyncio.create_task(
+                    self.run_heartbeat_loop(timeout=VLLM_RPC_TIMEOUT))
 
     def close(self):
         """Destroy the ZeroMQ Context."""
@@ -414,11 +433,10 @@ class MQLLMEngineClient(EngineClient):
     def dead_error(self) -> BaseException:
         return ENGINE_DEAD_ERROR(self._errored_with)
 
-    @overload  # DEPRECATED
+    @overload
     def generate(
         self,
-        *,
-        inputs: PromptType,
+        prompt: PromptType,
         sampling_params: SamplingParams,
         request_id: str,
         lora_request: Optional[LoRARequest] = None,
@@ -429,9 +447,11 @@ class MQLLMEngineClient(EngineClient):
         ...
 
     @overload
+    @deprecated("'inputs' will be renamed to 'prompt")
     def generate(
         self,
-        prompt: PromptType,
+        *,
+        inputs: PromptType,
         sampling_params: SamplingParams,
         request_id: str,
         lora_request: Optional[LoRARequest] = None,
@@ -472,8 +492,8 @@ class MQLLMEngineClient(EngineClient):
             trace_headers: OpenTelemetry trace headers.
             prompt_adapter_request: Prompt Adapter request to use
                                             for generation, if any.
-            priority: Priority of the request (lower means earlier handling). 
-                Any priority other than 0 will lead to an error if the 
+            priority: Priority of the request (lower means earlier handling).
+                Any priority other than 0 will lead to an error if the
                 scheduling policy is not "priority".
         """
         if inputs is not None:
@@ -485,11 +505,10 @@ class MQLLMEngineClient(EngineClient):
                                      lora_request, trace_headers,
                                      prompt_adapter_request, priority)
 
-    @overload  # DEPRECATED
+    @overload
     def encode(
         self,
-        *,
-        inputs: PromptType,
+        prompt: PromptType,
         pooling_params: PoolingParams,
         request_id: str,
         lora_request: Optional[LoRARequest] = None,
@@ -499,9 +518,11 @@ class MQLLMEngineClient(EngineClient):
         ...
 
     @overload
+    @deprecated("'inputs' will be renamed to 'prompt")
     def encode(
         self,
-        prompt: PromptType,
+        *,
+        inputs: PromptType,
         pooling_params: PoolingParams,
         request_id: str,
         lora_request: Optional[LoRARequest] = None,
@@ -525,7 +546,7 @@ class MQLLMEngineClient(EngineClient):
         *,
         inputs: Optional[PromptType] = None  # DEPRECATED
     ) -> AsyncGenerator[PoolingRequestOutput, None]:
-        """Generate outputs for a request from an embedding model.
+        """Generate outputs for a request from a pooling model.
 
         Generate outputs for a request. This method is a coroutine. It adds the
         request into the waiting queue of the LLMEngine and streams the outputs
@@ -574,6 +595,10 @@ class MQLLMEngineClient(EngineClient):
         if self._errored_with is not None:
             raise ENGINE_DEAD_ERROR(self._errored_with)
 
+        # Ensure the request id is unique among running requests
+        if request_id in self.output_queues:
+            raise ValueError(f"Request {request_id} already exists")
+
         # Constructing guided decoding logits processors is expensive, so we do
         # it here to avoid contending with cpu resources and the GIL on the
         # backend process.
@@ -586,6 +611,8 @@ class MQLLMEngineClient(EngineClient):
                     default_guided_backend=(self.decoding_config.guided_decoding_backend
                         if self.decoding_config
                         else DecodingConfig.guided_decoding_backend),
+                    model_config=self.model_config,
+                    reasoning_backend=self.decoding_config.reasoning_backend,
                 )
 
         # 1) Create output queue for this requests.
@@ -652,3 +679,41 @@ class MQLLMEngineClient(EngineClient):
 
         await self._send_one_way_rpc_request(
             request=RPCUProfileRequest.STOP_PROFILE, socket=self.input_socket)
+
+    async def reset_prefix_cache(self) -> None:
+        """Reset the prefix cache"""
+
+        await self._send_one_way_rpc_request(
+            request=RPCResetPrefixCacheRequest.RESET_PREFIX_CACHE,
+            socket=self.input_socket)
+
+    async def sleep(self, level: int = 1) -> None:
+        """Sleep the engine for a given level"""
+        return await self._send_one_way_rpc_request(
+            request=RPCSleepRequest(level), socket=self.input_socket)
+
+    async def wake_up(self) -> None:
+        """Wake up the engine"""
+        return await self._send_one_way_rpc_request(
+            request=RPCWakeUpRequest.WAKE_UP, socket=self.input_socket)
+
+    async def add_lora(self, lora_request: LoRARequest) -> None:
+        """Load a new LoRA adapter into the engine for future requests."""
+        # Uses the same I/O as generate requests
+        request = RPCLoadAdapterRequest(lora_request)
+
+        # Create output queue for this requests.
+        queue: asyncio.Queue[Union[None, BaseException]] = asyncio.Queue()
+        self.output_queues[request.request_id] = queue
+
+        # Send the request
+        request_bytes = pickle.dumps(request)
+        await self.input_socket.send_multipart((request_bytes, ), copy=False)
+
+        # Wait for the response
+        request_output = await queue.get()
+        self.output_queues.pop(request.request_id)
+
+        # Raise on error, otherwise happily return None
+        if isinstance(request_output, BaseException):
+            raise request_output

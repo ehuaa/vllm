@@ -1,20 +1,17 @@
+# SPDX-License-Identifier: Apache-2.0
 """Implementation of SiglipVisionModel intended to be only used
 within a vision language model."""
 
 import math
-from typing import Iterable, List, Optional, Set, Tuple, Union
+from typing import Iterable, Optional, Set, Tuple, Union
 
-import numpy as np
 import torch
-import torch.nn.functional as F
 from PIL import Image
 from torch import nn
 from transformers import SiglipVisionConfig
 
-from vllm.attention.selector import _Backend
-from vllm.config import ModelConfig
+from vllm.attention.layer import MultiHeadAttention
 from vllm.distributed import divide, get_tensor_model_parallel_world_size
-from vllm.inputs import DecoderOnlyInputs, token_inputs
 from vllm.model_executor.layers.activation import get_act_fn
 from vllm.model_executor.layers.linear import (ColumnParallelLinear,
                                                QKVParallelLinear,
@@ -23,13 +20,10 @@ from vllm.model_executor.layers.quantization import QuantizationConfig
 from vllm.model_executor.layers.vocab_parallel_embedding import (
     VocabParallelEmbedding)
 from vllm.model_executor.model_loader.weight_utils import default_weight_loader
-from vllm.multimodal.utils import (cached_get_tokenizer,
-                                   consecutive_placeholder_ranges,
-                                   repeat_and_pad_placeholder_tokens,
-                                   resolve_visual_encoder_outputs)
+from vllm.multimodal.utils import consecutive_placeholder_ranges
 from vllm.sequence import SequenceData
 
-from .utils import get_vit_attn_backend
+from .vision import VisionEncoderInfo, resolve_visual_encoder_outputs
 
 
 def get_siglip_patch_grid_length(*, image_size: int, patch_size: int) -> int:
@@ -94,69 +88,30 @@ def dummy_image_for_siglip(
     return {"image": image if num_images == 1 else [image] * num_images}
 
 
-def dummy_video_for_siglip(
-    hf_config: SiglipVisionConfig,
-    num_frames: int,
-    num_videos: int = 1,
-    *,
-    image_width_override: Optional[int] = None,
-    image_height_override: Optional[int] = None,
-):
-    pil_frame = dummy_image_for_siglip(
-        hf_config,
-        num_images=1,
-        image_width_override=image_width_override,
-        image_height_override=image_height_override)
-    np_frame = np.array(pil_frame["image"])
-    mm_data_per_video = np.repeat([np_frame], num_frames, axis=0)
-    video_data = [mm_data_per_video] * num_videos
-    mm_data = {"video": video_data}
-    return mm_data
+class SiglipEncoderInfo(VisionEncoderInfo[SiglipVisionConfig]):
 
+    def get_num_image_tokens(
+        self,
+        *,
+        image_width: int,
+        image_height: int,
+    ) -> int:
+        return get_siglip_image_feature_size(self.vision_config)
 
-def input_processor_for_siglip(
-    model_config: ModelConfig,
-    hf_config: SiglipVisionConfig,
-    inputs: DecoderOnlyInputs,
-    *,
-    image_token_id: int,
-    image_feature_size_override: Optional[Union[int, List[int]]] = None,
-):
-    multi_modal_data = inputs.get("multi_modal_data")
-    if multi_modal_data is None or "image" not in multi_modal_data:
-        return inputs
+    def get_max_image_tokens(self) -> int:
+        return get_max_siglip_image_tokens(self.vision_config)
 
-    if "multi_modal_placeholders" in inputs and "image" in inputs[
-            "multi_modal_placeholders"]:
-        # The inputs already have placeholders.
-        return inputs
+    def get_image_size(self) -> int:
+        return self.vision_config.image_size
 
-    tokenizer = cached_get_tokenizer(model_config.tokenizer)
+    def get_patch_size(self) -> int:
+        return self.vision_config.patch_size
 
-    if image_feature_size_override is None:
-        image_data = multi_modal_data["image"]
-        if isinstance(image_data, Image.Image):
-            image_feature_size = get_siglip_image_feature_size(hf_config)
-        elif isinstance(image_data, torch.Tensor):
-            num_images, image_feature_size, hidden_size = image_data.shape
-        else:
-            raise TypeError(f"Invalid image type: {type(image_data)}")
-    else:
-        image_feature_size = image_feature_size_override
-
-    new_prompt, new_token_ids, ranges = repeat_and_pad_placeholder_tokens(
-        tokenizer,
-        inputs.get("prompt"),
-        inputs["prompt_token_ids"],
-        placeholder_token_id=image_token_id,
-        repeat_count=image_feature_size,
-    )
-
-    # NOTE: Create a defensive copy of the original inputs
-    return token_inputs(prompt_token_ids=new_token_ids,
-                        prompt=new_prompt,
-                        multi_modal_data=multi_modal_data,
-                        multi_modal_placeholders={"image": ranges})
+    def get_patch_grid_length(self) -> int:
+        return get_siglip_patch_grid_length(
+            image_size=self.vision_config.image_size,
+            patch_size=self.vision_config.patch_size,
+        )
 
 
 # Adapted from https://github.com/huggingface/transformers/blob/v4.43.3/src/transformers/models/siglip/modeling_siglip.py#L249 # noqa
@@ -291,52 +246,18 @@ class SiglipAttention(nn.Module):
         self.tp_size = get_tensor_model_parallel_world_size()
         self.num_heads_per_partition = divide(self.num_heads, self.tp_size)
 
-        self.attn_backend = get_vit_attn_backend(support_fa=False)
-        if self.attn_backend not in {_Backend.TORCH_SDPA, _Backend.XFORMERS}:
-            raise RuntimeError(
-                f"SIGLIP does not support {self.attn_backend} backend now.")
+        self.attn = MultiHeadAttention(self.num_heads_per_partition,
+                                       self.head_dim, self.scale)
 
     def forward(
         self,
         hidden_states: torch.Tensor,
     ) -> torch.Tensor:
         """Input shape: Batch x Time x Channel"""
-        batch_size, q_len, _ = hidden_states.size()
-
         qkv_states, _ = self.qkv_proj(hidden_states)
         query_states, key_states, value_states = qkv_states.chunk(3, dim=-1)
 
-        query_states = query_states.view(batch_size, q_len,
-                                         self.num_heads_per_partition,
-                                         self.head_dim)
-        key_states = key_states.view(batch_size, q_len,
-                                     self.num_heads_per_partition,
-                                     self.head_dim)
-        value_states = value_states.view(batch_size, q_len,
-                                         self.num_heads_per_partition,
-                                         self.head_dim)
-
-        if self.attn_backend == _Backend.XFORMERS:
-            from xformers import ops as xops
-
-            out = xops.memory_efficient_attention_forward(query_states,
-                                                          key_states,
-                                                          value_states,
-                                                          p=self.dropout,
-                                                          scale=self.scale)
-        elif self.attn_backend == _Backend.TORCH_SDPA:
-            query_states, key_states, value_states = (x.transpose(1, 2)
-                                                      for x in (query_states,
-                                                                key_states,
-                                                                value_states))
-            out = F.scaled_dot_product_attention(query_states,
-                                                 key_states,
-                                                 value_states,
-                                                 dropout_p=self.dropout,
-                                                 scale=self.scale)
-            out = out.transpose(1, 2)
-
-        out = out.view(batch_size, q_len, -1)
+        out = self.attn(query_states, key_states, value_states)
         attn_output, _ = self.out_proj(out)
 
         return attn_output, None
@@ -354,10 +275,14 @@ class SiglipMLP(nn.Module):
 
         self.config = config
         self.activation_fn = get_act_fn(config.hidden_act)
-
-        # For quantization, we require the hidden size to be a multiple of 64
-        quantizable = (config.hidden_size % 64 == 0
-                       and config.intermediate_size % 64 == 0)
+        # Special handling for BNB quantization
+        if quant_config and quant_config.get_name() == "bitsandbytes":
+            quantizable = True
+        else:
+            # For other quantization, we require the hidden size to be a
+            # multiple of 64
+            quantizable = (config.hidden_size % 64 == 0
+                           and config.intermediate_size % 64 == 0)
         self.fc1 = ColumnParallelLinear(
             config.hidden_size,
             config.intermediate_size,
@@ -453,7 +378,7 @@ class SiglipEncoder(nn.Module):
         inputs_embeds: torch.Tensor,
         return_all_hidden_states: bool,
     ) -> Union[torch.Tensor, list[torch.Tensor]]:
-        hidden_states_pool = []
+        hidden_states_pool = [inputs_embeds]
         hidden_states = inputs_embeds
 
         for encoder_layer in self.layers:

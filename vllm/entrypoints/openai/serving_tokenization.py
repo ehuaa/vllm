@@ -1,4 +1,8 @@
-from typing import Final, List, Optional, Union
+# SPDX-License-Identifier: Apache-2.0
+
+from typing import Final, Optional, Union
+
+from fastapi import Request
 
 from vllm.config import ModelConfig
 from vllm.engine.protocol import EngineClient
@@ -13,11 +17,9 @@ from vllm.entrypoints.openai.protocol import (DetokenizeRequest,
                                               TokenizeRequest,
                                               TokenizeResponse)
 # yapf: enable
-from vllm.entrypoints.openai.serving_engine import (BaseModelPath,
-                                                    LoRAModulePath,
-                                                    OpenAIServing)
+from vllm.entrypoints.openai.serving_engine import OpenAIServing
+from vllm.entrypoints.openai.serving_models import OpenAIServingModels
 from vllm.logger import init_logger
-from vllm.utils import random_uuid
 
 logger = init_logger(__name__)
 
@@ -28,18 +30,15 @@ class OpenAIServingTokenization(OpenAIServing):
         self,
         engine_client: EngineClient,
         model_config: ModelConfig,
-        base_model_paths: List[BaseModelPath],
+        models: OpenAIServingModels,
         *,
-        lora_modules: Optional[List[LoRAModulePath]],
         request_logger: Optional[RequestLogger],
         chat_template: Optional[str],
         chat_template_content_format: ChatTemplateContentFormatOption,
     ) -> None:
         super().__init__(engine_client=engine_client,
                          model_config=model_config,
-                         base_model_paths=base_model_paths,
-                         lora_modules=lora_modules,
-                         prompt_adapters=None,
+                         models=models,
                          request_logger=request_logger)
 
         self.chat_template = chat_template
@@ -48,12 +47,13 @@ class OpenAIServingTokenization(OpenAIServing):
     async def create_tokenize(
         self,
         request: TokenizeRequest,
+        raw_request: Request,
     ) -> Union[TokenizeResponse, ErrorResponse]:
         error_check_ret = await self._check_model(request)
         if error_check_ret is not None:
             return error_check_ret
 
-        request_id = f"tokn-{random_uuid()}"
+        request_id = f"tokn-{self._base_request_id(raw_request)}"
 
         try:
             (
@@ -92,7 +92,7 @@ class OpenAIServingTokenization(OpenAIServing):
             logger.exception("Error in preprocessing prompt inputs")
             return self.create_error_response(str(e))
 
-        input_ids: List[int] = []
+        input_ids: list[int] = []
         for i, engine_prompt in enumerate(engine_prompts):
             self._log_inputs(request_id,
                              request_prompts[i],
@@ -112,12 +112,13 @@ class OpenAIServingTokenization(OpenAIServing):
     async def create_detokenize(
         self,
         request: DetokenizeRequest,
+        raw_request: Request,
     ) -> Union[DetokenizeResponse, ErrorResponse]:
         error_check_ret = await self._check_model(request)
         if error_check_ret is not None:
             return error_check_ret
 
-        request_id = f"tokn-{random_uuid()}"
+        request_id = f"tokn-{self._base_request_id(raw_request)}"
 
         (
             lora_request,

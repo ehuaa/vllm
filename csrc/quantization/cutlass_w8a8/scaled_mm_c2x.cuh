@@ -21,15 +21,16 @@
 #include "cutlass/epilogue/threadblock/fusion/visitors.hpp"
 #include "cutlass/gemm/kernel/default_gemm_universal_with_visitor.h"
 
-#include "common.hpp"
+#include "core/math.hpp"
+#include "cutlass_extensions/common.hpp"
 // clang-format on
 
 using namespace cute;
 
 /*
-   Epilogue functions can be defined to post-process the output before it is
-   written to GPU memory.
-   Epilogues must contain a public type named EVTCompute of type Sm80EVT,
+   Epilogues defined in,
+   csrc/cutlass_extensions/epilogue/scaled_mm_epilogues_c2x.hpp
+   must contain a public type named EVTCompute of type Sm80EVT,
    as well as a static prepare_args function that constructs an
    EVTCompute::Arguments struct.
 */
@@ -102,14 +103,19 @@ struct cutlass_2x_gemm {
 
   using EVTD = cutlass::epilogue::threadblock::Sm80EVT<D, EVTCompute>;
 
+  // These are the minimum alignments needed for the kernels to compile
+  static constexpr int AlignmentAB =
+      128 / cutlass::sizeof_bits<ElementAB>::value;
+  static constexpr int AlignmentCD = 4;
+
   // clang-format off
   using RowMajor = typename cutlass::layout::RowMajor;
   using ColumnMajor = typename cutlass::layout::ColumnMajor;
   using KernelType =
     ArchGuard<typename cutlass::gemm::kernel::DefaultGemmWithVisitor<
-      ElementAB, RowMajor, cutlass::ComplexTransform::kNone, 16,
-      ElementAB, ColumnMajor, cutlass::ComplexTransform::kNone, 16,
-      float, cutlass::layout::RowMajor, 4,
+      ElementAB, RowMajor, cutlass::ComplexTransform::kNone, AlignmentAB,
+      ElementAB, ColumnMajor, cutlass::ComplexTransform::kNone, AlignmentAB,
+      float, cutlass::layout::RowMajor, AlignmentCD,
       ElementAcc, float, cutlass::arch::OpClassTensorOp,
       Arch,
       TileShape, WarpShape, InstructionShape,

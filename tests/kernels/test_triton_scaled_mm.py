@@ -1,9 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the triton_scaled_mm kernel
 
 Run `pytest tests/kernels/test_triton_scaled_mm.py`.
 """
 import importlib
-from typing import Optional, Type
+from typing import Optional
 
 import pytest
 import torch
@@ -17,7 +18,7 @@ def scaled_mm_torch(a: torch.Tensor,
                     b: torch.Tensor,
                     scale_a: torch.Tensor,
                     scale_b: torch.Tensor,
-                    out_dtype: Type[torch.dtype],
+                    out_dtype: type[torch.dtype],
                     bias: Optional[torch.Tensor] = None) -> torch.Tensor:
     out = torch.mm(a.to(torch.float32), b.to(torch.float32))
     out = scale_a * out
@@ -37,6 +38,23 @@ def get_8bit_types():
     elif current_platform.is_cuda() and supports_fp8:
         types.append(torch.float8_e4m3fn)
     return types
+
+
+# This test is to check regressions for int8 support on ROCm.
+@pytest.mark.parametrize("model_path", [
+    "neuralmagic/Llama-3.2-1B-quantized.w8a8",
+])
+@pytest.mark.parametrize("max_tokens", [32])
+@pytest.mark.parametrize("num_logprobs", [10])
+@pytest.mark.skipif(not current_platform.is_rocm(),
+                    reason="Should only run on ROCm")
+def test_rocm_compressed_tensors_w8a8(vllm_runner, example_prompts, model_path,
+                                      max_tokens, num_logprobs):
+    dtype = "bfloat16"
+
+    with vllm_runner(model_path, dtype=dtype) as vllm_model:
+        vllm_model.generate_greedy_logprobs(example_prompts, max_tokens,
+                                            num_logprobs)
 
 
 @pytest.mark.parametrize("M", [1, 33, 64, 512])

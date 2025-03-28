@@ -1,11 +1,12 @@
-from typing import (Iterable, List, Literal, Mapping, Optional, Set, Tuple,
+# SPDX-License-Identifier: Apache-2.0
+
+from typing import (Iterable, Literal, Mapping, Optional, Set, Tuple,
                     TypedDict, Union)
 
 import torch
 from torch import nn
 from transformers import PaliGemmaConfig
 
-from vllm.attention import AttentionMetadata
 from vllm.config import VllmConfig
 from vllm.inputs import (INPUT_REGISTRY, DecoderOnlyInputs, DummyData,
                          InputContext, token_inputs)
@@ -14,10 +15,10 @@ from vllm.model_executor.layers.sampler import SamplerOutput
 from vllm.model_executor.sampling_metadata import SamplingMetadata
 from vllm.multimodal import MULTIMODAL_REGISTRY
 from vllm.multimodal.inputs import NestedTensors
-from vllm.multimodal.utils import cached_get_tokenizer
 from vllm.sequence import IntermediateTensors
+from vllm.transformers_utils.tokenizer import cached_tokenizer_from_config
 
-from .interfaces import SupportsMultiModal, SupportsPP
+from .interfaces import SupportsMultiModal, SupportsPP, SupportsV0Only
 from .siglip import (SiglipVisionModel, dummy_image_for_siglip,
                      dummy_seq_data_for_siglip, get_max_siglip_image_tokens)
 from .utils import (AutoWeightsLoader, init_vllm_registered_model,
@@ -86,7 +87,7 @@ def input_processor_for_paligemma(ctx: InputContext,
     model_config = ctx.model_config
     hf_config = ctx.get_hf_config(PaliGemmaConfig)
 
-    tokenizer = cached_get_tokenizer(model_config.tokenizer)
+    tokenizer = cached_tokenizer_from_config(model_config)
     image_feature_size = hf_config.text_config.num_image_tokens
     image_token_str = tokenizer.decode(hf_config.image_token_index)
     bos_token = tokenizer.decode(hf_config.bos_token_id)
@@ -105,6 +106,11 @@ def input_processor_for_paligemma(ctx: InputContext,
         orig_prompt_ids.remove(hf_config.image_token_index)
 
     new_prompt = f"{image_token_str_pad}{bos_token}{orig_prompt}\n"
+
+    # The PaliGemma 2 tokenizer does not include a starting BOS token
+    if orig_prompt_ids[0] != hf_config.bos_token_id:
+        orig_prompt_ids = [hf_config.bos_token_id] + orig_prompt_ids
+
     new_token_ids = image_token_ids_pad + orig_prompt_ids + [108]  #newline
 
     # NOTE: Create a defensive copy of the original inputs
@@ -130,7 +136,18 @@ class PaliGemmaMultiModalProjector(nn.Module):
 @INPUT_REGISTRY.register_dummy_data(dummy_data_for_paligemma)
 @INPUT_REGISTRY.register_input_processor(input_processor_for_paligemma)
 class PaliGemmaForConditionalGeneration(nn.Module, SupportsMultiModal,
-                                        SupportsPP):
+                                        SupportsPP, SupportsV0Only):
+    packed_modules_mapping = {
+        "qkv_proj": [
+            "q_proj",
+            "k_proj",
+            "v_proj",
+        ],
+        "gate_up_proj": [
+            "gate_proj",
+            "up_proj",
+        ],
+    }
 
     def __init__(self, *, vllm_config: VllmConfig, prefix: str = ""):
         super().__init__()
@@ -149,7 +166,11 @@ class PaliGemmaForConditionalGeneration(nn.Module, SupportsMultiModal,
             projection_dim=config.vision_config.projection_dim)
 
         self.quant_config = quant_config
-        config.text_config.architectures = ["GemmaForCausalLM"]
+
+        if config.text_config.model_type == "gemma":
+            config.text_config.architectures = ["GemmaForCausalLM"]
+        else:
+            config.text_config.architectures = ["Gemma2ForCausalLM"]
         self.language_model = init_vllm_registered_model(
             vllm_config=vllm_config,
             hf_config=config.text_config,
@@ -266,8 +287,6 @@ class PaliGemmaForConditionalGeneration(nn.Module, SupportsMultiModal,
     def forward(self,
                 input_ids: torch.Tensor,
                 positions: torch.Tensor,
-                kv_caches: List[torch.Tensor],
-                attn_metadata: AttentionMetadata,
                 intermediate_tensors: Optional[IntermediateTensors] = None,
                 inputs_embeds: Optional[torch.Tensor] = None,
                 **kwargs: object) -> Union[SamplerOutput, IntermediateTensors]:
@@ -284,8 +303,6 @@ class PaliGemmaForConditionalGeneration(nn.Module, SupportsMultiModal,
 
         hidden_states = self.language_model.model(input_ids,
                                                   positions,
-                                                  kv_caches,
-                                                  attn_metadata,
                                                   intermediate_tensors,
                                                   inputs_embeds=inputs_embeds)
 

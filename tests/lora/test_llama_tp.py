@@ -1,5 +1,6 @@
-from typing import List
+# SPDX-License-Identifier: Apache-2.0
 
+import pytest
 import ray
 
 import vllm
@@ -28,7 +29,7 @@ EXPECTED_LORA_OUTPUT = [
 ]
 
 
-def do_sample(llm: vllm.LLM, lora_path: str, lora_id: int) -> List[str]:
+def do_sample(llm: vllm.LLM, lora_path: str, lora_id: int) -> list[str]:
     prompts = [
         "[user] Write a SQL query to answer the question based on the table schema.\n\n context: CREATE TABLE table_name_74 (icao VARCHAR, airport VARCHAR)\n\n question: Name the ICAO for lilongwe international airport [/user] [assistant]",  # noqa: E501
         "[user] Write a SQL query to answer the question based on the table schema.\n\n context: CREATE TABLE table_name_11 (nationality VARCHAR, elector VARCHAR)\n\n question: When Anchero Pantaleone was the elector what is under nationality? [/user] [assistant]",  # noqa: E501
@@ -46,7 +47,7 @@ def do_sample(llm: vllm.LLM, lora_path: str, lora_id: int) -> List[str]:
         lora_request=LoRARequest(str(lora_id), lora_id, lora_path)
         if lora_id else None)
     # Print the outputs.
-    generated_texts: List[str] = []
+    generated_texts: list[str] = []
     for output in outputs:
         prompt = output.prompt
         generated_text = output.outputs[0].text
@@ -55,15 +56,7 @@ def do_sample(llm: vllm.LLM, lora_path: str, lora_id: int) -> List[str]:
     return generated_texts
 
 
-@fork_new_process_for_each_test
-def test_llama_lora(sql_lora_files):
-
-    llm = vllm.LLM(MODEL_PATH,
-                   enable_lora=True,
-                   max_num_seqs=16,
-                   max_loras=4,
-                   tensor_parallel_size=1)
-
+def generate_and_test(llm, sql_lora_files):
     print("lora adapter created")
     assert do_sample(llm, sql_lora_files, lora_id=0) == EXPECTED_NO_LORA_OUTPUT
 
@@ -79,6 +72,29 @@ def test_llama_lora(sql_lora_files):
     print("removing lora")
 
 
+@pytest.fixture(autouse=True)
+def v1(run_with_both_engines_lora):
+    # Simple autouse wrapper to run both engines for each test
+    # This can be promoted up to conftest.py to run for every
+    # test in a package
+    pass
+
+
+@fork_new_process_for_each_test
+def test_llama_lora(sql_lora_files):
+
+    llm = vllm.LLM(MODEL_PATH,
+                   enable_lora=True,
+                   max_num_seqs=16,
+                   max_loras=4,
+                   tensor_parallel_size=1,
+                   enable_chunked_prefill=True)
+    generate_and_test(llm, sql_lora_files)
+
+
+# Skipping for v1 as v1 doesn't have a good way to expose the num_gpu_blocks
+# used by the engine yet.
+@pytest.mark.skip_v1
 @fork_new_process_for_each_test
 def test_llama_lora_warmup(sql_lora_files):
     """Test that the LLM initialization works with a warmup LORA path and
@@ -117,21 +133,9 @@ def test_llama_lora_tp4(sql_lora_files):
         max_num_seqs=16,
         max_loras=4,
         tensor_parallel_size=4,
+        enable_chunked_prefill=True,
     )
-
-    print("lora adapter created")
-    assert do_sample(llm, sql_lora_files, lora_id=0) == EXPECTED_NO_LORA_OUTPUT
-
-    print("lora 1")
-    assert do_sample(llm, sql_lora_files, lora_id=1) == EXPECTED_LORA_OUTPUT
-
-    print("no lora")
-    assert do_sample(llm, sql_lora_files, lora_id=0) == EXPECTED_NO_LORA_OUTPUT
-
-    print("lora 2")
-    assert do_sample(llm, sql_lora_files, lora_id=2) == EXPECTED_LORA_OUTPUT
-
-    print("removing lora")
+    generate_and_test(llm, sql_lora_files)
 
 
 @multi_gpu_test(num_gpus=4)
@@ -145,17 +149,23 @@ def test_llama_lora_tp4_fully_sharded_loras(sql_lora_files):
         max_loras=4,
         tensor_parallel_size=4,
         fully_sharded_loras=True,
+        enable_chunked_prefill=True,
     )
-    print("lora adapter created")
-    assert do_sample(llm, sql_lora_files, lora_id=0) == EXPECTED_NO_LORA_OUTPUT
+    generate_and_test(llm, sql_lora_files)
 
-    print("lora 1")
-    assert do_sample(llm, sql_lora_files, lora_id=1) == EXPECTED_LORA_OUTPUT
 
-    print("no lora")
-    assert do_sample(llm, sql_lora_files, lora_id=0) == EXPECTED_NO_LORA_OUTPUT
+@multi_gpu_test(num_gpus=4)
+@fork_new_process_for_each_test
+def test_llama_lora_tp4_fully_sharded_enable_bias(sql_lora_files):
 
-    print("lora 2")
-    assert do_sample(llm, sql_lora_files, lora_id=2) == EXPECTED_LORA_OUTPUT
-
-    print("removing lora")
+    llm = vllm.LLM(
+        MODEL_PATH,
+        enable_lora=True,
+        max_num_seqs=16,
+        max_loras=4,
+        tensor_parallel_size=4,
+        fully_sharded_loras=True,
+        enable_lora_bias=True,
+        enable_chunked_prefill=True,
+    )
+    generate_and_test(llm, sql_lora_files)

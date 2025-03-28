@@ -1,10 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+
 import asyncio
+import copy
 import time
 import weakref
 from functools import partial
 from typing import (Any, AsyncGenerator, Callable, Coroutine, Dict, Iterable,
                     List, Mapping, Optional, Set, Tuple, Type, Union, overload)
 from weakref import ReferenceType
+
+from typing_extensions import deprecated
 
 import vllm.envs as envs
 from vllm.config import (DecodingConfig, LoRAConfig, ModelConfig,
@@ -15,9 +20,7 @@ from vllm.engine.async_timeout import asyncio_timeout
 from vllm.engine.llm_engine import LLMEngine, SchedulerOutputState
 from vllm.engine.metrics_types import StatLoggerBase
 from vllm.engine.protocol import EngineClient
-from vllm.executor.executor_base import ExecutorAsyncBase
-from vllm.executor.gpu_executor import GPUExecutorAsync
-from vllm.executor.ray_utils import initialize_ray_cluster
+from vllm.executor.executor_base import ExecutorBase
 from vllm.inputs import PromptType
 from vllm.inputs.preprocess import InputPreprocessor
 from vllm.logger import init_logger
@@ -422,7 +425,8 @@ class _AsyncLLMEngine(LLMEngine):
         return await (
             self.get_tokenizer_group().get_lora_tokenizer_async(lora_request))
 
-    @overload  # DEPRECATED
+    @overload
+    @deprecated("'inputs' will be renamed to 'prompt")
     async def add_request_async(
         self,
         request_id: str,
@@ -504,7 +508,9 @@ class _AsyncLLMEngine(LLMEngine):
                 sampling_params=params,
                 tokenizer=await self.get_tokenizer_async(lora_request),
                 default_guided_backend=self.decoding_config.
-                guided_decoding_backend)
+                guided_decoding_backend,
+                reasoning_backend=self.decoding_config.reasoning_backend,
+                model_config=self.model_config)
 
         self._add_processed_request(
             request_id=request_id,
@@ -525,22 +531,34 @@ class _AsyncLLMEngine(LLMEngine):
 
 async def build_guided_decoding_logits_processor_async(
         sampling_params: SamplingParams, tokenizer: AnyTokenizer,
-        default_guided_backend: str) -> SamplingParams:
+        default_guided_backend: str, reasoning_backend: Optional[str],
+        model_config: ModelConfig) -> SamplingParams:
     """Constructs logits processors based on the guided_decoding,
     logits_bias, and allowed_token_ids fields in sampling_params. Deletes
     those fields and adds the constructed logits processors to the
     logits_processors field. Modifies sampling params in-place and returns
     the modified sampling params."""
-    if (guided_decoding := sampling_params.guided_decoding) is None:
+    if sampling_params.guided_decoding is None:
         return sampling_params
 
-    logger.debug("Building guided decoding logits processor. "
-                 "Params: %s", guided_decoding)
+    # Defensively copy sampling params since guided decoding logits
+    # processors can have different state for each request
+    sampling_params = copy.copy(sampling_params)
+    guided_decoding = sampling_params.guided_decoding
+
+    logger.info(
+        "Building guided decoding logits processor. "
+        "guided_decoding: %s%s", guided_decoding,
+        f", reasoning_backend: {reasoning_backend}"
+        if reasoning_backend is not None else "")
 
     guided_decoding.backend = guided_decoding.backend or default_guided_backend
 
     processor = await get_guided_decoding_logits_processor(
-        guided_params=guided_decoding, tokenizer=tokenizer)
+        guided_params=guided_decoding,
+        tokenizer=tokenizer,
+        reasoning_backend=reasoning_backend,
+        model_config=model_config)
 
     if processor:
         if sampling_params.logits_processors is None:
@@ -607,69 +625,9 @@ class AsyncLLMEngine(EngineClient):
             rt.new_requests_event.set()
 
     @classmethod
-    def _get_executor_cls(
-            cls, engine_config: VllmConfig) -> Type[ExecutorAsyncBase]:
-        distributed_executor_backend = (
-            engine_config.parallel_config.distributed_executor_backend)
-        if isinstance(distributed_executor_backend, type):
-            if not issubclass(distributed_executor_backend, ExecutorAsyncBase):
-                raise TypeError(
-                    "distributed_executor_backend must be a subclass of "
-                    f"ExecutorAsyncBase. Got {distributed_executor_backend}.")
-            executor_class = distributed_executor_backend
-        elif engine_config.device_config.device_type == "neuron":
-            from vllm.executor.neuron_executor import NeuronExecutorAsync
-            executor_class = NeuronExecutorAsync
-        elif engine_config.device_config.device_type == "tpu":
-            if distributed_executor_backend == "ray":
-                from vllm.executor.ray_tpu_executor import RayTPUExecutorAsync
-                executor_class = RayTPUExecutorAsync
-            else:
-                assert distributed_executor_backend is None
-                from vllm.executor.tpu_executor import TPUExecutorAsync
-                executor_class = TPUExecutorAsync
-        elif engine_config.device_config.device_type == "cpu":
-            from vllm.executor.cpu_executor import CPUExecutorAsync
-            executor_class = CPUExecutorAsync
-        elif engine_config.device_config.device_type == "hpu":
-            if distributed_executor_backend == "ray":
-                initialize_ray_cluster(engine_config.parallel_config)
-                from vllm.executor.ray_hpu_executor import RayHPUExecutorAsync
-                executor_class = RayHPUExecutorAsync
-            else:
-                from vllm.executor.hpu_executor import HPUExecutorAsync
-                executor_class = HPUExecutorAsync
-        elif engine_config.device_config.device_type == "openvino":
-            assert distributed_executor_backend is None, (
-                "Distributed execution is not supported with "
-                "the OpenVINO backend.")
-            from vllm.executor.openvino_executor import OpenVINOExecutorAsync
-            executor_class = OpenVINOExecutorAsync
-        elif engine_config.device_config.device_type == "xpu":
-            if distributed_executor_backend is None:
-                from vllm.executor.xpu_executor import XPUExecutorAsync
-                executor_class = XPUExecutorAsync
-            elif distributed_executor_backend == "ray":
-                from vllm.executor.ray_xpu_executor import RayXPUExecutorAsync
-                executor_class = RayXPUExecutorAsync
-            elif distributed_executor_backend == "mp":
-                from vllm.executor.multiproc_xpu_executor import (
-                    MultiprocessingXPUExecutorAsync)
-                executor_class = MultiprocessingXPUExecutorAsync
-            else:
-                raise RuntimeError(
-                    "Not supported distributed execution model on XPU device.")
-        elif distributed_executor_backend == "ray":
-            from vllm.executor.ray_gpu_executor import RayGPUExecutorAsync
-            executor_class = RayGPUExecutorAsync
-        elif distributed_executor_backend == "mp":
-            from vllm.executor.multiproc_gpu_executor import (
-                MultiprocessingGPUExecutorAsync)
-            executor_class = MultiprocessingGPUExecutorAsync
-        else:
-            from vllm.executor.gpu_executor import GPUExecutorAsync
-            executor_class = GPUExecutorAsync
-        return executor_class
+    def _get_executor_cls(cls,
+                          engine_config: VllmConfig) -> Type[ExecutorBase]:
+        return LLMEngine._get_executor_cls(engine_config)
 
     @classmethod
     def from_engine_args(
@@ -686,9 +644,6 @@ class AsyncLLMEngine(EngineClient):
             engine_config = engine_args.create_engine_config(usage_context)
 
         executor_class = cls._get_executor_cls(engine_config)
-
-        if executor_class.uses_ray:
-            initialize_ray_cluster(engine_config.parallel_config)
 
         # Create the async LLM engine.
         engine = cls(
@@ -894,7 +849,8 @@ class AsyncLLMEngine(EngineClient):
 
     # This method does not need to be async, but kept that way
     # for backwards compatibility.
-    @overload  # DEPRECATED
+    @overload
+    @deprecated("'inputs' will be renamed to 'prompt")
     def add_request(
         self,
         request_id: str,
@@ -1051,16 +1007,20 @@ class AsyncLLMEngine(EngineClient):
             >>> # Process and return the final output
             >>> ...
         """
-        async for output in await self.add_request(
-                request_id,
-                prompt,
-                sampling_params,
-                lora_request=lora_request,
-                trace_headers=trace_headers,
-                prompt_adapter_request=prompt_adapter_request,
-                priority=priority,
-        ):
-            yield LLMEngine.validate_output(output, RequestOutput)
+        try:
+            async for output in await self.add_request(
+                    request_id,
+                    prompt,
+                    sampling_params,
+                    lora_request=lora_request,
+                    trace_headers=trace_headers,
+                    prompt_adapter_request=prompt_adapter_request,
+                    priority=priority,
+            ):
+                yield LLMEngine.validate_output(output, RequestOutput)
+        except asyncio.CancelledError:
+            await self.abort(request_id)
+            raise
 
     async def encode(
         self,
@@ -1071,7 +1031,7 @@ class AsyncLLMEngine(EngineClient):
         trace_headers: Optional[Mapping[str, str]] = None,
         priority: int = 0,
     ) -> AsyncGenerator[PoolingRequestOutput, None]:
-        """Generate outputs for a request from an embedding model.
+        """Generate outputs for a request from a pooling model.
 
         Generate outputs for a request. This method is a coroutine. It adds the
         request into the waiting queue of the LLMEngine and streams the outputs
@@ -1133,15 +1093,19 @@ class AsyncLLMEngine(EngineClient):
             >>> # Process and return the final output
             >>> ...
         """
-        async for output in await self.add_request(
-                request_id,
-                prompt,
-                pooling_params,
-                lora_request=lora_request,
-                trace_headers=trace_headers,
-                priority=priority,
-        ):
-            yield LLMEngine.validate_output(output, PoolingRequestOutput)
+        try:
+            async for output in await self.add_request(
+                    request_id,
+                    prompt,
+                    pooling_params,
+                    lora_request=lora_request,
+                    trace_headers=trace_headers,
+                    priority=priority,
+            ):
+                yield LLMEngine.validate_output(output, PoolingRequestOutput)
+        except asyncio.CancelledError:
+            await self.abort(request_id)
+            raise
 
     async def abort(self, request_id: str) -> None:
         """Abort a request.
@@ -1220,17 +1184,26 @@ class AsyncLLMEngine(EngineClient):
         self.engine.remove_logger(logger_name=logger_name)
 
     async def start_profile(self) -> None:
-        # using type instead of isinstance to check to avoid capturing
-        # inherited classes
-        if type(self.engine.model_executor) == GPUExecutorAsync:  # noqa: E721
-            self.engine.model_executor.start_profile()
-        else:
-            self.engine.model_executor._run_workers("start_profile")
+        self.engine.start_profile()
 
     async def stop_profile(self) -> None:
-        # using type instead of isinstance to check to avoid capturing
-        # inherited classes
-        if type(self.engine.model_executor) == GPUExecutorAsync:  # noqa: E721
-            self.engine.model_executor.stop_profile()
-        else:
-            self.engine.model_executor._run_workers("stop_profile")
+        self.engine.stop_profile()
+
+    async def reset_prefix_cache(self) -> None:
+        self.engine.reset_prefix_cache()
+
+    async def sleep(self, level: int = 1) -> None:
+        self.engine.sleep(level)
+
+    async def wake_up(self) -> None:
+        self.engine.wake_up()
+
+    async def add_lora(self, lora_request: LoRARequest) -> None:
+        self.engine.add_lora(lora_request)
+
+
+# TODO(v1): Remove this class proxy when V1 goes default.
+if envs.VLLM_USE_V1:
+    from vllm.v1.engine.async_llm import AsyncLLM
+
+    AsyncLLMEngine = AsyncLLM  # type: ignore

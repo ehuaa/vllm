@@ -1,5 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+
 import dataclasses
-from typing import Dict, List, Optional
+from typing import Optional
 
 import pytest
 
@@ -12,7 +14,7 @@ from ..utils import compare_all_settings
 @dataclasses.dataclass
 class TestSetting:
     model: str
-    model_args: List[str]
+    model_args: list[str]
     pp_size: int
     tp_size: int
     attn_backend: str
@@ -24,7 +26,7 @@ class TestSetting:
 test_settings = [
     # basic llama model
     TestSetting(
-        model="meta-llama/Llama-3.2-1B",
+        model="meta-llama/Llama-3.2-1B-Instruct",
         model_args=[],
         pp_size=2,
         tp_size=2,
@@ -55,17 +57,17 @@ test_settings = [
     # embedding model
     TestSetting(
         model="BAAI/bge-multilingual-gemma2",
-        model_args=["--task", "embedding"],
+        model_args=["--task", "embed"],
         pp_size=1,
         tp_size=1,
-        attn_backend="FLASHINFER",
+        attn_backend="FLASH_ATTN",
         method="encode",
         fullgraph=True,
     ),
     # encoder-based embedding model (BERT)
     TestSetting(
         model="BAAI/bge-base-en-v1.5",
-        model_args=["--task", "embedding"],
+        model_args=["--task", "embed"],
         pp_size=1,
         tp_size=1,
         attn_backend="XFORMERS",
@@ -106,8 +108,8 @@ def test_compile_correctness(test_setting: TestSetting):
     final_args = ["--enforce-eager"] + model_args + ["-pp", str(pp_size)] + \
                 ["-tp", str(tp_size)]
 
-    all_args: List[List[str]] = []
-    all_envs: List[Optional[Dict[str, str]]] = []
+    all_args: list[list[str]] = []
+    all_envs: list[Optional[dict[str, str]]] = []
 
     for level in [
             CompilationLevel.NO_COMPILATION,

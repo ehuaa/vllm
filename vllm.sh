@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 IMAGE_VERSION=latest
-IMAGE_NAME=vllm/vllm-openai-fix
-CONTAINER_NAME=vllm72b-zj-offline-embedding
+IMAGE_NAME=vllm/vllm-openai
+CONTAINER_NAME=vllm0.7.3-embedding
 # MODEL_DIR=/data/xq/qwen2-5-72b-dpo-1101
-MODEL_DIR=/data/czh/SFR-Embedding-Mistral
+MODEL_DIR=/nas/zhangzeqing/embedding_synthetic_data/intfloat/multilingual-e5-large-instruct
 CODE_DIR=/data/czh/vllm
-DEVICES='"device=0,1,2,3,4,5,6,7"'
+DEVICES='"device=0,1"'
 
 start() {
     # docker start command
@@ -42,7 +42,8 @@ start() {
         --network host \
         -e MODEL_PATH=${MODEL_DIR} \
         -e EMBEDDING_OFFLINE=1 \
-        -e PORT=28192 \
+        -e TOKENIZER_MAX_LENGTH=512 \
+        -e PORT=38192 \
         -v ${MODEL_DIR}:${MODEL_DIR} \
         -v ${CODE_DIR}:${CODE_DIR} \
         ${IMAGE_NAME}:${IMAGE_VERSION}

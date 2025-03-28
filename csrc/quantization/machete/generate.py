@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 import itertools
 import math
 import os
@@ -6,7 +8,7 @@ from collections.abc import Iterable
 from copy import deepcopy
 from dataclasses import dataclass, fields
 from functools import reduce
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import jinja2
 # yapf conflicts with isort for this block
@@ -63,7 +65,7 @@ torch::Tensor mm_dispatch_{{type_sig}}(MMArgs args) {
 
 
 static inline std::optional<at::ScalarType> maybe_scalartype(
-    c10::optional<at::Tensor> const& t) {
+    std::optional<at::Tensor> const& t) {
     if (!t) {
       return std::nullopt;
     } else {
@@ -189,7 +191,7 @@ using Kernel_{{type_sig}} = MacheteKernelTemplate<
   {{DataTypeTag[t.b_group_zeropoint]}}, // GroupZeroT
   {{DataTypeTag[t.b_channel_scale]}}, // ChannelScaleT
   {{DataTypeTag[t.a_token_scale]}}, // TokenScaleT
-  cutlass::gemm::KernelTmaWarpSpecializedCooperativeMixedInput,
+  cutlass::gemm::KernelTmaWarpSpecializedCooperative,
   Sch>;
 
 {% for sch in schs %}
@@ -223,7 +225,7 @@ torch::Tensor prepack_B_dispatch(PrepackBArgs args) {
         {{DataTypeTag[t.convert]}}, // ElementConvert
         {{DataTypeTag[t.accumulator]}}, // Accumulator
         cutlass::layout::ColumnMajor,
-        cutlass::gemm::KernelTmaWarpSpecializedCooperativeMixedInput>
+        cutlass::gemm::KernelTmaWarpSpecializedCooperative>
     >(args.B); 
   }
   {%- endfor %}
@@ -239,14 +241,14 @@ torch::Tensor prepack_B_dispatch(PrepackBArgs args) {
 }; // namespace machete
 """
 
-TmaMI = MixedInputKernelScheduleType.TmaWarpSpecializedCooperativeMixedInput
+TmaMI = MixedInputKernelScheduleType.TmaWarpSpecializedCooperative
 TmaCoop = EpilogueScheduleType.TmaWarpSpecializedCooperative
 
 
 @dataclass(frozen=True)
 class ScheduleConfig:
-    tile_shape_mn: Tuple[int, int]
-    cluster_shape_mnk: Tuple[int, int, int]
+    tile_shape_mn: tuple[int, int]
+    cluster_shape_mnk: tuple[int, int, int]
     kernel_schedule: MixedInputKernelScheduleType
     epilogue_schedule: EpilogueScheduleType
     tile_scheduler: TileSchedulerType
@@ -275,8 +277,8 @@ class PrepackTypeConfig:
 @dataclass
 class ImplConfig:
     types: TypeConfig
-    schedules: List[ScheduleConfig]
-    heuristic: List[Tuple[Optional[str], ScheduleConfig]]
+    schedules: list[ScheduleConfig]
+    heuristic: list[tuple[Optional[str], ScheduleConfig]]
 
 
 def generate_sch_sig(schedule_config: ScheduleConfig) -> str:
@@ -300,7 +302,7 @@ def generate_sch_sig(schedule_config: ScheduleConfig) -> str:
 # mostly unique shorter sch_sig
 def generate_terse_sch_sig(schedule_config: ScheduleConfig) -> str:
     kernel_terse_names_replace = {
-        "KernelTmaWarpSpecializedCooperativeMixedInput_": "TmaMI_",
+        "KernelTmaWarpSpecializedCooperative": "TmaMI_",
         "TmaWarpSpecializedCooperative_": "TmaCoop_",
         "StreamKScheduler": "streamK",
     }
@@ -331,7 +333,7 @@ def is_power_of_two(n):
     return (n != 0) and (n & (n - 1) == 0)
 
 
-def to_cute_constant(value: List[int]):
+def to_cute_constant(value: list[int]):
 
     def _to_cute_constant(value: int):
         if is_power_of_two(value):
@@ -345,7 +347,7 @@ def to_cute_constant(value: List[int]):
         return _to_cute_constant(value)
 
 
-def unique_schedules(impl_configs: List[ImplConfig]):
+def unique_schedules(impl_configs: list[ImplConfig]):
     return list(
         set(sch for impl_config in impl_configs
             for sch in impl_config.schedules))
@@ -389,7 +391,7 @@ mm_impl_template = create_template(IMPL_TEMPLATE)
 prepack_dispatch_template = create_template(PREPACK_TEMPLATE)
 
 
-def create_sources(impl_configs: List[ImplConfig], num_impl_files=8):
+def create_sources(impl_configs: list[ImplConfig], num_impl_files=8):
     sources = []
 
     sources.append((
@@ -433,7 +435,7 @@ def create_sources(impl_configs: List[ImplConfig], num_impl_files=8):
     num_impls = reduce(lambda x, y: x + len(y.schedules), impl_configs, 0)
     num_impls_per_file = math.ceil(num_impls / num_impl_files)
 
-    files_impls: List[List[ImplConfig]] = [[]]
+    files_impls: list[list[ImplConfig]] = [[]]
 
     curr_num_impls_assigned = 0
     curr_impl_in_file = 0
@@ -513,7 +515,7 @@ def generate():
         for cond, tile_config in default_tile_heuristic_config.items()
     ]
 
-    def get_unique_schedules(heuristic: Dict[str, ScheduleConfig]):
+    def get_unique_schedules(heuristic: dict[str, ScheduleConfig]):
         # Do not use schedules = list(set(...)) because we need to make sure
         # the output list is deterministic; otherwise the generated kernel file
         # will be non-deterministic and causes ccache miss.

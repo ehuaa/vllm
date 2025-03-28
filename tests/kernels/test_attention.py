@@ -1,5 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+
 import random
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import pytest
 import torch
@@ -31,9 +33,9 @@ NUM_GEN_SEQS = [7]  # Arbitrary values for testing
 NUM_PREFILL_SEQS = [3]  # Arbitrary values for testing
 NUM_HEADS = [(40, 40), (64, 8)]  # Arbitrary values for testing
 
-# FlashAttention forward only supports head dimension at most 128
-# https://github.com/ROCmSoftwarePlatform/flash-attention/blob/3d2b6f5d037782cc2c906909a46fb7e2e1b48b25/csrc/flash_attn_rocm/flash_api.cpp#L62
-HEAD_SIZES = [64, 80, 120, 256]
+# This should be sync with get_supported_head_sizes() in
+# vllm.attention.ops.paged_attn.PagedAttention
+HEAD_SIZES = [32, 64, 80, 96, 112, 120, 128, 192, 256]
 
 BLOCK_SIZES = [16, 32]
 USE_ALIBI = [False, True]
@@ -83,8 +85,8 @@ def ref_single_query_cached_kv_attention(
         block_table = block_tables_lst[i]
         seq_len = int(seq_lens_lst[i])
 
-        keys_lst: List[torch.Tensor] = []
-        values_lst: List[torch.Tensor] = []
+        keys_lst: list[torch.Tensor] = []
+        values_lst: list[torch.Tensor] = []
         for j in range(seq_len):
             block_number = int(block_table[j // block_size])
             block_offset = j % block_size
@@ -131,7 +133,7 @@ def test_paged_attention(
     kv_cache_factory,
     version: str,
     num_seqs: int,
-    num_heads: Tuple[int, int],
+    num_heads: tuple[int, int],
     head_size: int,
     use_alibi: bool,
     block_size: int,
@@ -164,7 +166,7 @@ def test_paged_attention(
 
     # Create the block tables.
     max_num_blocks_per_seq = (max_seq_len + block_size - 1) // block_size
-    block_tables_lst: List[List[int]] = []
+    block_tables_lst: list[list[int]] = []
     for _ in range(num_seqs):
         block_table = [
             random.randint(0, NUM_BLOCKS - 1)
@@ -182,7 +184,7 @@ def test_paged_attention(
     key_cache, value_cache = key_caches[0], value_caches[0]
 
     # Using default kv_scale
-    k_scale = v_scale = 1.0
+    k_scale = v_scale = torch.tensor(1.0, dtype=torch.float32, device=device)
 
     # Call the paged attention kernel.
     output = torch.empty_like(query)
@@ -332,7 +334,7 @@ def test_paged_attention(
 
 
 def ref_multi_query_kv_attention(
-    cu_seq_lens: List[int],
+    cu_seq_lens: list[int],
     query: torch.Tensor,
     key: torch.Tensor,
     value: torch.Tensor,
@@ -340,7 +342,7 @@ def ref_multi_query_kv_attention(
     dtype: torch.dtype,
 ) -> torch.Tensor:
     num_seqs = len(cu_seq_lens) - 1
-    ref_outputs: List[torch.Tensor] = []
+    ref_outputs: list[torch.Tensor] = []
     for i in range(num_seqs):
         start_idx = cu_seq_lens[i]
         end_idx = cu_seq_lens[i + 1]
@@ -376,7 +378,7 @@ def ref_multi_query_kv_attention(
 @torch.inference_mode()
 def test_multi_query_kv_attention(
     num_seqs: int,
-    num_heads: Tuple[int, int],
+    num_heads: tuple[int, int],
     head_size: int,
     dtype: torch.dtype,
     seed: int,

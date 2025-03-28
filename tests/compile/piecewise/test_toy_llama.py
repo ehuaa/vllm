@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """
 Test the piecewise compilation with a simple model, comparing the output
 with and without the piecewise compilation.
@@ -7,13 +8,12 @@ if the config `tractable_init` is set to True. Otherwise, the weights are
 initialized randomly with a fixed seed.
 """
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Any, Optional
 
 import torch
 from torch import nn
 from torch.library import Library
 
-from vllm.compilation.compile_context import set_compile_context
 from vllm.compilation.counter import compilation_counter
 from vllm.compilation.decorators import support_torch_compile
 from vllm.config import (CompilationConfig, CompilationLevel, VllmConfig,
@@ -54,6 +54,16 @@ class LlamaConfig:
     init_value: float = 1.0
     tractable_init: bool = False
     random_seed: int = 0
+
+    def compute_hash(self) -> str:
+        factors: list[Any] = []
+        for k, v in self.__dict__.items():
+            if k == "random_seed":
+                continue
+            factors.append((k, v))
+        factors.sort()
+        import hashlib
+        return hashlib.md5(str(factors).encode()).hexdigest()
 
     def __post_init__(self):
         assert self.mlp_size >= self.hidden_size
@@ -164,7 +174,7 @@ class LlamaDecoderLayer(nn.Module):
         positions: torch.Tensor,
         hidden_states: torch.Tensor,
         residual: Optional[torch.Tensor],
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         For tractable computation:
         - if residual is None, the outputs are:
@@ -256,6 +266,7 @@ def run_model(llama_config,
         compilation_config = CompilationConfig(
             level=CompilationLevel.PIECEWISE,
             use_cudagraph=True,
+            cudagraph_capture_sizes=[1, 2],
         )
         if split_attn:
             compilation_config.splitting_ops = ["silly.attention"]
@@ -263,7 +274,8 @@ def run_model(llama_config,
         compilation_config = CompilationConfig(
             level=CompilationLevel.NO_COMPILATION, )
 
-    vllm_config = VllmConfig(compilation_config=compilation_config)
+    vllm_config = VllmConfig(compilation_config=compilation_config,
+                             additional_config=llama_config)
     with set_current_vllm_config(vllm_config):
         model = LlamaModel(config=llama_config,
                            vllm_config=vllm_config,
@@ -273,10 +285,9 @@ def run_model(llama_config,
     input_ids = torch.randint(0, llama_config.vocab_size, (B, )).cuda()
     positions = torch.arange(B).cuda()
 
-    with set_compile_context([1, 2]):
-        model(input_ids, positions)
-        model(input_ids[:2], positions[:2])
-        model(input_ids[:1], positions[:1])
+    model(input_ids, positions)
+    model(input_ids[:2], positions[:2])
+    model(input_ids[:1], positions[:1])
 
     input_ids[:2].zero_()
     output = model(input_ids[:2], positions[:2])
@@ -311,7 +322,7 @@ def test_toy_llama():
             num_graphs_seen=0,
             num_piecewise_graphs_seen=0,
             num_piecewise_capturable_graphs_seen=0,
-            num_inductor_compilations=0,
+            num_backend_compilations=0,
             num_cudagraph_caputured=0,
     ):
         outputs.append(run_model(llama_config, use_compile=False))
@@ -321,7 +332,7 @@ def test_toy_llama():
             num_graphs_seen=1,  # one graph for the model
             num_piecewise_graphs_seen=1,
             num_piecewise_capturable_graphs_seen=1,
-            num_inductor_compilations=1,  # num_piecewise_capturable_graphs_seen
+            num_backend_compilations=1,  # num_piecewise_capturable_graphs_seen
             num_cudagraph_caputured=
             2,  # num_cudagraph_sizes * num_piecewise_capturable_graphs_seen
     ):
@@ -334,7 +345,7 @@ def test_toy_llama():
             1,  # 2 * num_layers + 1
             num_piecewise_capturable_graphs_seen=1 +
             llama_config.num_layers,  # 1 + num_layers
-            num_inductor_compilations=1 +
+            num_backend_compilations=1 +
             llama_config.num_layers,  # num_piecewise_capturable_graphs_seen
             num_cudagraph_caputured=2 *
         (1 + llama_config.num_layers
@@ -379,10 +390,13 @@ def benchmark():
                 level=CompilationLevel.PIECEWISE,
                 use_cudagraph=True,
                 splitting_ops=["silly.attention"],
+                cudagraph_capture_sizes=cudagraph_sizes,
             )
         else:
             compilation_config = CompilationConfig(
-                level=CompilationLevel.PIECEWISE, )
+                level=CompilationLevel.PIECEWISE,
+                cudagraph_capture_sizes=cudagraph_sizes,
+            )
 
         vllm_config = VllmConfig(compilation_config=compilation_config)
         with set_current_vllm_config(vllm_config):
@@ -396,17 +410,16 @@ def benchmark():
 
         graphs = {}
 
-        with set_compile_context(cudagraph_sizes):
-            model(input_ids, positions)
-            for b in cudagraph_sizes[::-1]:
-                if not piecewise:
-                    graph = torch.cuda.CUDAGraph()
-                    with torch.cuda.graph(graph, pool=pool):
-                        output = model(input_ids[:b], positions[:b])
-                    graphs[b] = (graph, output)
-                else:
+        model(input_ids, positions)
+        for b in cudagraph_sizes[::-1]:
+            if not piecewise:
+                graph = torch.cuda.CUDAGraph()
+                with torch.cuda.graph(graph, pool=pool):
                     output = model(input_ids[:b], positions[:b])
-                    graphs[b] = (model, output)
+                graphs[b] = (graph, output)
+            else:
+                output = model(input_ids[:b], positions[:b])
+                graphs[b] = (model, output)
         for b in cudagraph_sizes:
             if piecewise:
                 # noqa is for `Function definition does not bind loop variable`
