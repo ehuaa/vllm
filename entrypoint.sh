@@ -90,6 +90,14 @@ fi
 echo "PORT is $port"
 #while true; do sleep 1s; done;
 
+TOOL_PARSER=""
+case "$MODEL" in
+  *[lL]lama*) TOOL_PARSER="--enable-auto-tool-choice --tool-call-parser llama3_json --chat-template examples/tool_chat_template_llama3.1_json.jinja" ;;
+  *[qQ]wen*)  TOOL_PARSER="--enable-auto-tool-choice --tool-call-parser" ;;
+  *[mM]ixtral*) TOOL_PARSER="--enable-auto-tool-choice --tool-call-parser mistral --chat-template examples/tool_chat_template_mistral_parallel.jinja" ;;
+esac
+echo "TOOL_PARSER is: $TOOL_PARSER"
+
 if [ -n "$EMBEDDING_OFFLINE" ]; then
     python3 -m vllm.entrypoints.offline_embedding_server --port ${port} --host 0.0.0.0 --model ${MODEL} --tokenizer-max-length ${TOKENIZER_MAX_LENGTH} --tensor-parallel-size=${TP_SIZE} $ENFORCE_EAGER_ARG $DISABLE_LOG_ARG $DISABLE_SLIDING_WINDOW_ARG
 elif [ -n "$EMBEDDING_ONLINE" ]; then
@@ -97,5 +105,5 @@ elif [ -n "$EMBEDDING_ONLINE" ]; then
 else
     python3 -m vllm.entrypoints.openai.api_server --port ${port} --host 0.0.0.0 \
     --gpu-memory-utilization ${gpu_usage} --tensor-parallel-size=${TP_SIZE} \
-    --model ${MODEL} --trust-remote-code --max-num-seqs=${max_num_seqs} --kv-cache-dtype ${kv_cache_dtype} --enable-auto-tool-choice --tool-call-parser hermes $CHUNKED_PREFILL_ARG $PREFIX_CACHING_ARG $DISABLE_CUSTOM_ALL_REDUCE_ARG $DISABLE_SLIDING_WINDOW_ARG $ENFORCE_EAGER_ARG $MAX_NUM_BATCHED_TOKENS_ARG $MAX_MODEL_LEN_ARG
+    --model ${MODEL} --trust-remote-code --max-num-seqs=${max_num_seqs} --kv-cache-dtype ${kv_cache_dtype} $TOOL_PARSER $CHUNKED_PREFILL_ARG $PREFIX_CACHING_ARG $DISABLE_CUSTOM_ALL_REDUCE_ARG $DISABLE_SLIDING_WINDOW_ARG $ENFORCE_EAGER_ARG $MAX_NUM_BATCHED_TOKENS_ARG $MAX_MODEL_LEN_ARG
 fi
